@@ -1,0 +1,78 @@
+import os
+import requests
+import json
+import time
+from dotenv import load_dotenv
+
+load_dotenv()
+
+SUNO_SERVER_URL = os.getenv("SUNO_SERVER_URL", "http://localhost:3001")
+SUNO_COOKIE = os.getenv("SUNO_COOKIE")
+
+def generate_luk_thung():
+    if not SUNO_COOKIE:
+        print("Error: SUNO_COOKIE not set")
+        return
+
+    print(f"Connecting to Suno API at {SUNO_SERVER_URL}...")
+
+    # 1. Check Credits
+    try:
+        r = requests.get(f"{SUNO_SERVER_URL}/api/get_limit")
+        print(f"Credits status: {r.status_code}")
+        print(r.text)
+    except Exception as e:
+        print(f"Failed to connect to server: {e}")
+        return
+
+    # 2. Generate Song
+    # Params: prompt (lyrics), tags (style), title
+    title = "Thai Country Luk Thung"
+    style = "Thai Country Luk Thung, slow tempo, heartfelt emotional sweet female vocals, traditional Thai instruments, soothing, nostalgic, orchestral strings, 4k audio quality"
+    lyrics = """(Verse 1)
+มองจันทร์คืนนี้ คิดถึงบ้านนาที่จากมา
+ลมหนาวพัดพา หัวใจสั่นไหว
+คิดถึงท้องนา เสียงขลุ่ยแว่วมาแต่ไกล
+
+(Chorus)
+โอ้... คนดี รอพี่อยู่ไหม
+ฝากหัวใจ ลอยไปกับดาว
+รอพี่หน่อยหนา สัญญาจะกลับไป
+
+(Outro)
+บ้านนา... ที่รัก..."""
+
+    payload = {
+        "prompt": lyrics,
+        "tags": style,
+        "title": title,
+        "make_instrumental": False,
+        "wait_audio": True
+    }
+
+    print("\nGenerating song...")
+    start_time = time.time()
+    try:
+        r = requests.post(f"{SUNO_SERVER_URL}/api/custom_generate", json=payload, timeout=120)
+        print(f"Generation status: {r.status_code}")
+        
+        if r.status_code != 200:
+            print(f"Error: {r.text}")
+            return
+
+        data = r.json()
+        print("Generation successful!")
+        print(json.dumps(data, indent=2, ensure_ascii=False))
+        
+        # Check audio URL
+        items = data if isinstance(data, list) else [data]
+        for item in items:
+            print(f"Song ID: {item.get('id')}")
+            print(f"Audio URL: {item.get('audio_url')}")
+            print(f"Video URL: {item.get('video_url')}")
+
+    except Exception as e:
+        print(f"Generation failed with exception: {e}")
+
+if __name__ == "__main__":
+    generate_luk_thung()
