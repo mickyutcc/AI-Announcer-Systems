@@ -1,151 +1,154 @@
-"""
-Configuration file for MuseGenx1000 AI Music Studio
-Contains all constants, API keys, and settings
-"""
-
+import argparse
 import os
-from dotenv import load_dotenv
+import sys
 
-load_dotenv()
+import config
 
-# ==================== VERSION ====================
-APP_VERSION = "v1.0.3 Beta"
-SUPPORT_EMAIL = os.getenv("SUPPORT_EMAIL", "support@musegen.ai")
+REQUEST_TIMEOUT: int = config.REQUEST_TIMEOUT
+SUNO_TIMEOUT: int = config.SUNO_TIMEOUT
+MAX_POLL_SECONDS: int = config.MAX_POLL_SECONDS
+RETRY_DELAY: int = config.RETRY_DELAY
+FAL_KEY: str = config.FAL_KEY
+GOAPI_KEY: str = config.GOAPI_KEY
+ASSETS_DIR: str = config.ASSETS_DIR
+MUSIC_BACKEND: str = config.MUSIC_BACKEND
+SUNO_SERVER_URL: str = config.SUNO_SERVER_URL
+SUNO_COOKIE: str = config.SUNO_COOKIE
+TWOCAPTCHA_KEY: str = config.TWOCAPTCHA_KEY
+GENERATE_URL: str = config.GENERATE_URL
+FETCH_URL: str = config.FETCH_URL
+FREE_CREDITS: int = 9
 
-# ==================== BACKEND ====================
-MUSIC_BACKEND = os.getenv("MUSIC_BACKEND", "udio").lower().strip()
-if MUSIC_BACKEND not in ("udio", "suno"):
-    MUSIC_BACKEND = "udio"
+# If run directly, try to run the main CLI
+if __name__ == "__main__":
 
-# ==================== API KEYS ====================
-GOAPI_KEY = os.getenv("GOAPI_KEY", "")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-SUNO_COOKIE = os.getenv("SUNO_COOKIE", "")
+    # Check if arguments are provided. If not, launch UI.
+    if len(sys.argv) == 1:
+        print("🎵 Starting MuseGenx1000 AI Studio Suite...")
+        try:
+            # Metrics server is started in main_ui.create_main_ui() via prometheus_metrics module
+            
+            import voice_clone
+            voice_clone.start_cache_cleanup_worker()
+            import main_ui
+            import uvicorn
+            from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form
+            from fastapi.middleware.cors import CORSMiddleware
+            from prometheus_fastapi_instrumentator import Instrumentator
+            from pydantic import BaseModel
+            from sqlalchemy.orm import Session
+            import gradio as gr
+            
+            # App modules
+            from database_setup import get_db
+            import handlers_subscription_manual
+            import handlers_subscription_admin
+            import user_db
 
-# ==================== API ENDPOINTS ====================
-GENERATE_URL = os.getenv("GOAPI_GENERATE_URL", "https://api.goapi.ai/api/v1/task")
-FETCH_URL = os.getenv("GOAPI_FETCH_URL", "https://api.goapi.ai/api/v1/task/")
-SUNO_SERVER_URL = os.getenv("SUNO_SERVER_URL", "http://localhost:3000")
+            # Create FastAPI app
+            app = FastAPI()
+            
+            # Instrument FastAPI for Prometheus metrics
+            Instrumentator().instrument(app).expose(app)
+            
+            # CORS
+            app.add_middleware(
+                CORSMiddleware,
+                allow_origins=["*"],
+                allow_credentials=True,
+                allow_methods=["*"],
+                allow_headers=["*"],
+            )
 
-# ==================== TIMEOUTS ====================
-REQUEST_TIMEOUT = int(os.getenv("REQUEST_TIMEOUT", "30"))
-MAX_POLL_SECONDS = int(os.getenv("MAX_POLL_SECONDS", "300"))
-OPENAI_TIMEOUT = int(os.getenv("OPENAI_TIMEOUT", "30"))
-SUNO_TIMEOUT = int(os.getenv("SUNO_TIMEOUT", "120"))
+            @app.get("/healthz")
+            def health_check():
+                return {"status": "ok"}
+                
+            # --- API Endpoints for Smoke Test & Integration ---
+            
+            class FileWrapper:
+                def __init__(self, upload_file):
+                    self.upload_file = upload_file
+                    self.filename = upload_file.filename
+                def read(self):
+                    return self.upload_file.file.read()
 
-# ==================== RETRY SETTINGS ====================
-MAX_RETRIES = int(os.getenv("MAX_RETRIES", "3"))
-RETRY_DELAY = int(os.getenv("RETRY_DELAY", "10"))
+            @app.post("/api/subscriptions")
+            def create_subscription(
+                user_id: int = Form(...),
+                plan: str = Form(...),
+                payment_ref: str = Form(...),
+                file: UploadFile = File(...),
+                db: Session = Depends(get_db)
+            ):
+                result = handlers_subscription_manual.create_subscription_request(
+                    user_id=user_id,
+                    plan=plan,
+                    payment_ref=payment_ref,
+                    file_obj=FileWrapper(file),
+                    db_session=db
+                )
+                if result.get("status") == "ERROR":
+                    raise HTTPException(status_code=400, detail=result.get("message"))
+                return result
 
-# ==================== GG COINS ====================
-GG_RATE = 20  # 1$ = 20 GG
-GG_COST_SONG = 2  # สร้าง 1 เพลง = 2 GG
-GG_COST_INST = 1  # Instrumental = 1 GG
-GG_TOPUP_MIN = 10  # เติมขั้นต่ำ 10 GG
-GG_SIGNUP_BONUS = 2  # สมัครใหม่ได้ 2 GG
+            class ApproveRequest(BaseModel):
+                admin_id: int
+                period_days: int = 30
 
-# ==================== LANGUAGE TAGS ====================
-LANGUAGE_TAGS = {
-    "thai": [
-        "Thai", "Thai vocals", "ภาษาไทย",
-        "native Thai pronunciation", "native Thai voice",
-        "native accent", "Bangkok accent", "clear Thai diction"
-    ],
-    "english": [
-        "English", "English vocals",
-        "native English pronunciation", "native English voice", "native accent"
-    ],
-    "japanese": [
-        "Japanese", "Japanese vocals",
-        "native Japanese pronunciation", "native Japanese voice", "native accent"
-    ],
-    "korean": [
-        "Korean", "Korean vocals",
-        "native Korean pronunciation", "native Korean voice", "native accent"
-    ],
-    "chinese": [
-        "Chinese", "Chinese vocals",
-        "native Chinese pronunciation", "native Chinese voice", "native accent"
-    ],
-    "isan": [
-        "Isan", "Isan vocals", "Luk Thung",
-        "native Isan pronunciation", "native Isan voice", "native accent"
-    ],
-}
+            @app.post("/api/admin/subscriptions/{subscription_id}/approve")
+            def approve_subscription(
+                subscription_id: int,
+                req: ApproveRequest,
+                db: Session = Depends(get_db)
+            ):
+                result = handlers_subscription_admin.admin_approve_subscription(
+                    admin_id=req.admin_id,
+                    subscription_id=subscription_id,
+                    db_session=db,
+                    user_db=user_db,
+                    period_days=req.period_days
+                )
+                if not result.get("ok"):
+                    raise HTTPException(status_code=400, detail=result.get("msg"))
+                return result
+            # --------------------------------------------------
 
-# ==================== NEGATIVE TAGS ====================
-NEGATIVE_TAGS_DEFAULT = "instrumental,no vocals,bad audio,robotic,foreign accent,broken language"
-NEGATIVE_TAGS_MODERN = (
-    "retro,vintage,lo-fi,old school,noise,grain,1980s,1990s,low quality,muffled"
-)
-NEGATIVE_TAGS_ISAN = (
-    "Chinese,Asian accent,Gibberish,Distortion,Muffled,Noise,Grainy"
-)
+            demo, theme, css = main_ui.create_main_ui()
+            
+            # Mount Gradio app to FastAPI
+            # Theme and CSS are passed to gr.Blocks in create_main_ui
+            app = gr.mount_gradio_app(app, demo, path="/")
 
-# ==================== AI MODELS ====================
-AI_MODEL_MAP = ["auto", "v1", "v1.5", "v2"]
-DEFAULT_AI_MODEL = "v2"
+            print(f"🚀 Starting server on {config.GRADIO_SERVER_NAME}:{config.GRADIO_SERVER_PORT}")
+            uvicorn.run(
+                app,
+                host=config.GRADIO_SERVER_NAME,
+                port=int(config.GRADIO_SERVER_PORT),
+            )
+        except ImportError as e:
+            print(f"❌ Error launching UI: {e}")
+            print(
+                "Please ensure requirements are installed: pip install -r requirements.txt"
+            )
+        except Exception as e:
+            print(f"❌ System Error: {e}")
+    else:
+        # Run CLI mode
+        # เพิ่ม argument สำหรับเลือกสำเนียงภาษา
+        parser = argparse.ArgumentParser(description="MuseGenx1000 CLI")
+        parser.add_argument(
+            "--accent",
+            type=str,
+            default="thai",
+            help="Accent for song generation (default: thai)",
+        )
+        args, unknown = parser.parse_known_args()
+        # ส่ง accent ไปยัง main.main()
+        try:
+            import main
 
-LLM_MODELS = ["gpt-3.5-turbo", "gpt-4o-mini", "gpt-4o"]
-DEFAULT_LLM_MODEL = "gpt-4o-mini"
-DEFAULT_TEMPERATURE = 0.8
-DEFAULT_MAX_TOKENS = 2000
-
-# ==================== LYRICS MODES ====================
-LYRICS_MODES = [
-    "default", "romantic", "sad", "funny", "energetic",
-    "long", "hiphop", "indie", "electronic", "classical"
-]
-
-# ==================== GENRE & MOOD ====================
-GENRES = [
-    "Pop", "Rock", "Hip-Hop", "R&B", "Electronic", "Dance", "EDM", "House",
-    "Trance", "Reggae", "Country", "Folk", "Indie", "Acoustic", "Jazz",
-    "Blues", "Classical", "Latin", "K-Pop", "J-Pop", "Thai Pop", "Metal",
-    "Punk", "Soul", "Ambient", "Lo-fi", "Funk", "Disco",
-    "ลูกทุ่ง", "หมอลำ"
-]
-
-MOODS = [
-    "Energetic", "Romantic", "Melancholic", "Nostalgic", "Calm", "Playful",
-    "Aggressive", "Happy", "Sad", "Hopeful", "Dreamy", "Mysterious",
-    "Epic", "Warm", "Angry", "Reflective", "Tender"
-]
-
-VOCALIST_TYPES = [
-    "Male", "Female", "Non-binary",
-    "Transgender (M→F)", "Transgender (F→M)",
-    "Androgynous", "Child", "Elderly", "Any"
-]
-
-# ==================== AUDIO LAB ====================
-AUDIO_LAB_TASKS = [
-    "ลดเสียงรบกวน (Noise Reduction)",
-    "แยกเสียงร้อง (Vocal Separation - HQ)",
-    "แยกเสียงร้อง (Vocal Isolation - Basic)",
-    "ปรับเสียงให้ดังเท่ากัน (Normalize)",
-    "ปรับเส้นเสียงให้คงที่ (Compressor)",
-    "เพิ่มความใสของเสียง (Brightness)"
-]
-
-AUDIO_LAB_FOCUS = ["บาลานซ์", "ร้องเด่น", "ดนตรีเด่น"]
-
-# ==================== PATHS ====================
-ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
-LOGO_PATH = os.path.join(ASSETS_DIR, "logo.png")
-
-# ==================== GRADIO SETTINGS ====================
-GRADIO_SERVER_PORT = os.getenv("GRADIO_SERVER_PORT", "7860")
-GRADIO_SERVER_NAME = "0.0.0.0"
-
-# ==================== STARTUP LOG ====================
-def print_config():
-    """Print configuration on startup"""
-    print(f"[CONFIG] 🎵 Music Backend: {MUSIC_BACKEND.upper()}")
-    print(f"[CONFIG] API Key: {GOAPI_KEY[:8]}..." if GOAPI_KEY else "[CONFIG] ❌ No GOAPI_KEY")
-    print(f"[CONFIG] OpenAI: {OPENAI_API_KEY[:8]}..." if OPENAI_API_KEY else "[CONFIG] ❌ No OPENAI_KEY")
-    print(f"[CONFIG] Version: {APP_VERSION}")
-    print(f"[CONFIG] Support: {SUPPORT_EMAIL}")
-
-# Call on import
-print_config()
+            main.main(accent=args.accent)
+        except ImportError:
+            print("Error: Could not import main.py")
+            sys.exit(1)

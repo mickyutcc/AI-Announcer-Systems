@@ -1,0 +1,19 @@
+{
+  "title": "TTS MOS Pilot",
+  "description": "ฟอร์มนี้เป็นการทดสอบคุณภาพเสียง TTS (MOS). โปรดฟังแต่ละคู่และให้คะแนนตามคำชี้นำ",
+  "fields": [
+    { "name": "respondent_id", "type": "short_text", "label": "Participant ID (optional)" },
+    { "name": "age_group", "type": "choice", "label": "Age group", "choices": ["<18", "18-24", "25-34", "35-44", "45+"] },
+    { "name": "dialect", "type": "choice", "label": "Dialect/region", "choices": ["Central", "North", "Northeast", "South", "Other"] },
+    { "name": "device", "type": "choice", "label": "Device used", "choices": ["Phone", "Laptop", "Desktop", "Tablet"] },
+    { "name": "instructions", "type": "paragraph", "label": "Instructions", "text": "For each row below you will see two audio links (A and B). Play both and rate each on MOS scale 1-5 (1 worst - 5 best). Then choose preference: A, B, or No preference." },
+    { "name": "test_rows", "type": "repeating", "label": "Test items", "item_fields": [
+      { "name": "sentence_id", "type": "short_text", "label": "Sentence ID" },
+      { "name": "audio_A_url", "type": "short_text", "label": "Audio A (public URL)" },
+      { "name": "mos_A", "type": "scale", "label": "MOS for A", "min": 1, "max": 5 },
+      { "name": "audio_B_url", "type": "short_text", "label": "Audio B (public URL)" },
+      { "name": "mos_B", "type": "scale", "label": "MOS for B", "min": 1, "max": 5 },
+      { "name": "preference", "type": "choice", "label": "Which do you prefer?", "choices": ["A", "B", "No preference"] }
+    ]}
+  ]
+}

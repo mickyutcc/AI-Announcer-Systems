@@ -1,0 +1,19 @@
+{
+  "typeCheckingMode": "basic",
+  "include": [
+    "."
+  ],
+  "exclude": [
+    ".venv",
+    "venv",
+    "env",
+    ".env",
+    "build",
+    "dist",
+    ".git",
+    "**/site-packages",
+    "**/node_modules"
+  ],
+  "reportMissingTypeStubs": "none",
+  "reportMissingImports": "none"
+}

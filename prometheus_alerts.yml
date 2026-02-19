@@ -1,0 +1,11 @@
+groups: 
+ - name: subscription_alerts 
+   rules: 
+   - alert: HighSubscriptionApprovalLatency 
+     expr: histogram_quantile(0.9, sum(rate(subscription_approval_latency_seconds_bucket[1h])) by (le)) > 86400 
+     for: 30m 
+     labels: 
+       severity: critical 
+     annotations: 
+       summary: "High subscription approval latency (90th percentile > 24h)" 
+       description: "Approval latency is very high. Investigate admin/ops. Instance: {{ $labels.instance }}"

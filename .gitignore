@@ -27,6 +27,12 @@ build/
 # IDE
 .vscode/
 .idea/
+
+# Custom Ignore
+pythainlp-data/
+cache/
+tmp.json
+*.log
 *.swp
 *.swo
 *~

@@ -1,9 +1,11 @@
 import argparse
 import os
 import sys
-import app
-import user_db
+
+import config
 import music_generator
+import user_db
+
 
 def cmd_generate(args):
     user_id, msg = user_db.login_user(args.username, args.password)
@@ -14,27 +16,41 @@ def cmd_generate(args):
     if not ok_perm:
         print(perm_msg)
         return
-    ok_bal, bal_msg = user_db.check_gg_balance(user_id, app.GG_COST_SONG)
+    ok_bal, bal_msg = user_db.check_gg_balance(user_id, config.GG_COST_SONG)
     if not ok_bal:
         print(bal_msg)
         return
     print("เริ่มสร้างเพลง…")
-    res = music_generator.generate_song(args.title, args.style, args.lyrics, args.mode)
+    # Handle accent by appending to style if not default 'thai'
+    style = args.style
+    if args.accent and args.accent.lower() != "thai":
+        style = f"{style} {args.accent} accent"
+
+    res = music_generator.generate_song(args.title, style, args.lyrics, args.mode)
     if not res.get("ok"):
         print("❌ สร้างเพลงล้มเหลว:", res.get("message"))
         return
     audio_url = res.get("audio_url") or ""
     file_path = res.get("file") or ""
-    user_db.save_song(user_id, args.title, args.style, args.lyrics, audio_url, args.mode, status="completed")
-    user_db.deduct_gg(user_id, app.GG_COST_SONG, f"สร้างเพลง: {args.title}")
+    user_db.save_song(
+        user_id,
+        args.title,
+        args.style,
+        args.lyrics,
+        audio_url,
+        args.mode,
+        status="completed",
+    )
+    user_db.deduct_gg(user_id, config.GG_COST_SONG, f"สร้างเพลง: {args.title}")
     print("✅ สร้างเพลงสำเร็จ!")
     if audio_url:
         print("URL:", audio_url)
     if file_path:
         print("ไฟล์ถูกบันทึกที่:", file_path)
 
+
 def cmd_config(_args):
-    app.print_config()
+    config.print_config()
 
 
 def cmd_env(_args):
@@ -44,23 +60,30 @@ def cmd_env(_args):
 
 
 def cmd_users_list(_args):
-    users = user_db.get_all_users()
+    users = user_db.get_all_users_as_dict()
     if not users:
         print("ยังไม่มีสมาชิก — สมัครคนแรกจะได้เป็น Admin อัตโนมัติ")
         return
     print(f"สมาชิกทั้งหมด {len(users)} คน:")
     for u in users:
-        print(f"@{u['username']:15s}  {u['display_name']:15s}  [{u['level']:5s}]  {int(u['gg_balance']):4d} GG")
+        print(
+            f"@{u['username']:15s}  {u['display_name']:15s}  [{u['level']:5s}]  {int(u['gg_balance']):4d} GG"
+        )
 
 
 def cmd_users_register(args):
-    ok, msg = user_db.register_user(args.username, args.password, args.display_name or "", args.email or "")
+    ok, msg = user_db.register_user(
+        args.username, args.password, args.display_name or "", args.email or ""
+    )
     print(msg)
 
 
 def cmd_users_promote(args):
     conn = user_db._get_conn()
-    row = conn.execute("SELECT id, display_name, level FROM users WHERE username=?", (args.username.strip(),)).fetchone()
+    row = conn.execute(
+        "SELECT id, display_name, level FROM users WHERE username=?",
+        (args.username.strip(),),
+    ).fetchone()
     if not row:
         conn.close()
         print(f"ไม่พบผู้ใช้ '{args.username}'")
@@ -72,7 +95,7 @@ def cmd_users_promote(args):
     user_db.add_gg(user_id, 9999, "admin_grant", "ตั้งเป็น Admin พร้อมเครดิต GG")
 
 
-def main():
+def main(accent="thai"):
     parser = argparse.ArgumentParser(prog="MuseGenx1000")
     sub = parser.add_subparsers(dest="cmd")
 
@@ -103,6 +126,7 @@ def main():
     p_gen.add_argument("--style", default="")
     p_gen.add_argument("--lyrics", default="")
     p_gen.add_argument("--mode", default="easy")
+    p_gen.add_argument("--accent", default="thai")
     p_gen.set_defaults(func=cmd_generate)
 
     args = parser.parse_args()
