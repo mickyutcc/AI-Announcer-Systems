@@ -1,5 +1,5 @@
 """
-ระบบสมาชิกและประวัติเพลง — MuseGenx1000
+ระบบสมาชิกและประวัติเพลง - MuseGenx1000
 ใช้ SQLite เก็บข้อมูลผู้ใช้ + ประวัติการสร้างเพลง + ระบบเลเวลสมาชิก + ระบบเหรียญ GG
 """
 
@@ -242,7 +242,7 @@ def register_user(
     free_gg = LEVEL_CONFIG["free"]["gg_reward"]
     conn = _get_conn()
     try:
-        # ตรวจว่าเป็นผู้ใช้คนแรกหรือไม่ — ถ้าใช่ ตั้งเป็น Admin อัตโนมัติ
+        # ตรวจว่าเป็นผู้ใช้คนแรกหรือไม่ - ถ้าใช่ ตั้งเป็น Admin อัตโนมัติ
         existing_count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
         is_first_user = existing_count == 0
         initial_level = "admin" if is_first_user else "free"
@@ -547,7 +547,7 @@ def deduct_gg(user_id: int, amount: float, description: str = "") -> tuple[bool,
     # Admin ไม่หัก GG
     level = get_user_level(user_id)
     if level == "admin":
-        return True, "✅ Admin — ไม่หัก GG"
+        return True, "✅ Admin - ไม่หัก GG"
     conn = _get_conn()
     balance = conn.execute(
         "SELECT gg_balance FROM users WHERE id=?", (user_id,)
@@ -560,7 +560,7 @@ def deduct_gg(user_id: int, amount: float, description: str = "") -> tuple[bool,
         conn.close()
         return (
             False,
-            f"⚠️ GG ไม่เพียงพอ (มี {current:.0f} GG ต้องการ {amount:.0f} GG) — เติม GG เพื่อสร้างเพลงต่อ",
+            f"⚠️ GG ไม่เพียงพอ (มี {current:.0f} GG ต้องการ {amount:.0f} GG) - เติม GG เพื่อสร้างเพลงต่อ",
         )
     new_balance = current - amount
     conn.execute("UPDATE users SET gg_balance=? WHERE id=?", (new_balance, user_id))
@@ -626,7 +626,7 @@ def validate_and_reserve(
         return False, "❌ ไม่พบ user_id", None
     level = get_user_level(user_id)
     if level == "admin":
-        return True, "✅ Admin — ไม่หัก GG", get_gg_balance(user_id)
+        return True, "✅ Admin - ไม่หัก GG", get_gg_balance(user_id)
     conn = _get_conn()
     try:
         conn.execute("BEGIN IMMEDIATE")
@@ -641,7 +641,7 @@ def validate_and_reserve(
             conn.rollback()
             return (
                 False,
-                f"⚠️ GG ไม่เพียงพอ (มี {current:.0f} GG ต้องการ {cost:.0f} GG) — เติม GG ที่แท็บ 💰 เติม GG",
+                f"⚠️ GG ไม่เพียงพอ (มี {current:.0f} GG ต้องการ {cost:.0f} GG) - เติม GG ที่แท็บ 💰 เติม GG",
                 current,
             )
         new_balance = current - cost
@@ -737,7 +737,7 @@ def refund_gg(user_id: int, amount: float, description: str = "") -> tuple[bool,
         return False, "❌ ไม่พบ user_id"
     level = get_user_level(user_id)
     if level == "admin":
-        return True, "✅ Admin — ไม่ต้องคืน GG"
+        return True, "✅ Admin - ไม่ต้องคืน GG"
     return add_gg(user_id, amount, "refund", description or f"Refund {amount:.0f} GG")
 
 
@@ -851,12 +851,12 @@ def check_gg_balance(user_id: int, cost: float = 1) -> tuple[bool, str]:
     # Admin ไม่จำกัด
     level = get_user_level(user_id)
     if level == "admin":
-        return True, "✅ Admin — ไม่จำกัด GG"
+        return True, "✅ Admin - ไม่จำกัด GG"
     balance = get_gg_balance(user_id)
     if balance < cost:
         return (
             False,
-            f"⚠️ GG ไม่เพียงพอ (มี {balance:.0f} GG ต้องการ {cost:.0f} GG) — เติม GG ที่แท็บ 💰 เติม GG",
+            f"⚠️ GG ไม่เพียงพอ (มี {balance:.0f} GG ต้องการ {cost:.0f} GG) - เติม GG ที่แท็บ 💰 เติม GG",
         )
     return True, f"✅ มี {balance:.0f} GG (ใช้ {cost:.0f} GG)"
 
@@ -993,7 +993,7 @@ if __name__ == "__main__":
         ).fetchall()
         conn.close()
         if not rows:
-            print("💭 ยังไม่มีสมาชิก — สมัครคนแรกจะได้เป็น Admin อัตโนมัติ")
+            print("💭 ยังไม่มีสมาชิก - สมัครคนแรกจะได้เป็น Admin อัตโนมัติ")
         else:
             print(f"👥 สมาชิกทั้งหมด {len(rows)} คน:")
             for r in rows:
@@ -1002,8 +1002,8 @@ if __name__ == "__main__":
                 )
     else:
         print("วิธีใช้:")
-        print("  python user_db.py promote <username>  — ตั้งผู้ใช้เป็น Admin")
-        print("  python user_db.py list                — ดูรายชื่อสมาชิกทั้งหมด")
+        print("  python user_db.py promote <username>  - ตั้งผู้ใช้เป็น Admin")
+        print("  python user_db.py list                - ดูรายชื่อสมาชิกทั้งหมด")
 
 # ===================== New Top Up & Admin Functions =====================
 

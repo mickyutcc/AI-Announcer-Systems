@@ -386,7 +386,7 @@ class SunoApi {
               };
               if (drag) {
                 // Say to the worker that he needs to click
-                payload.textinstructions = 'CLICK on the shapes at their edge or center as shown above—please be precise!';
+                payload.textinstructions = 'CLICK on the shapes at their edge or center as shown above-please be precise!';
                 payload.imginstructions = (await fs.readFile(path.join(process.cwd(), 'public', 'drag-instructions.jpg'))).toString('base64');
               }
               captcha = await this.solver!.coordinates(payload);

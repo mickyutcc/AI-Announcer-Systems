@@ -983,7 +983,7 @@ def create_main_ui():
                 )
                 topup_amount_update = gr.update(value=topup_amount)
                 topup_resume_update = gr.update(visible=False)
-                status_display = "ยอดเครดิตไม่พอ — เติมขั้นต่ำ 10 GG"
+                status_display = "ยอดเครดิตไม่พอ - เติมขั้นต่ำ 10 GG"
                 pending_payload = {
                     "prompt": prompt,
                     "style": style,

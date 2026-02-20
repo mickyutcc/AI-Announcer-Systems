@@ -239,7 +239,7 @@ def _suno_with_fallback(
             print(f"DEBUG: Waiting {backoff}s before next SUNO attempt...", flush=True)
             time.sleep(backoff)
 
-    # If reached here, SUNO attempts exhausted — fallback to UDIO
+    # If reached here, SUNO attempts exhausted - fallback to UDIO
     if progress_callback:
         progress_callback(0.3, "⚠️ Suno ไม่สำเร็จ กำลังเปลี่ยนไปใช้ Udio...")
     print("DEBUG: SUNO attempts exhausted, falling back to UDIO.", flush=True)
@@ -266,7 +266,7 @@ def _suno_with_fallback(
         print("DEBUG: FAL fallback succeeded.", flush=True)
         return fal_res
 
-    # Both SUNO, UDIO and FAL failed — return last error (prefer fal message if present)
+    # Both SUNO, UDIO and FAL failed - return last error (prefer fal message if present)
     final_msg = (
         fal_res.get("message")
         or udio_res.get("message")
