@@ -17,6 +17,7 @@ import ui_components
 import user_db
 import prometheus_metrics
 import os
+from locales import t
 
 if config.SENTRY_DSN and sentry_sdk:
     sentry_sdk.init(
@@ -41,7 +42,7 @@ def create_main_ui():
 
     # Use a base theme that is close to what we want, then override
     theme = Soft(
-        primary_hue="violet",
+        primary_hue="blue",
         secondary_hue="indigo",
         neutral_hue="slate",
     ).set(
@@ -50,47 +51,66 @@ def create_main_ui():
         block_border_width="1px",
         block_border_color="#334155",
         input_background_fill="#020617",
-        button_primary_background_fill="linear-gradient(90deg, #6366f1, #a855f7)",
-        button_primary_background_fill_hover="linear-gradient(90deg, #4f46e5, #9333ea)",
+        button_primary_background_fill="linear-gradient(90deg, #0052D4 0%, #4364F7 50%, #6FB1FC 100%)",
+        button_primary_background_fill_hover="linear-gradient(90deg, #0041a8 0%, #3651c9 50%, #5a9ceb 100%)",
         button_primary_text_color="#ffffff",
         button_secondary_background_fill="#334155",
         button_secondary_text_color="#f8fafc",
     )
 
     css = """
-    /* --- Modern Clean Dark Theme (High Contrast) --- */
+    /* --- Modern Clean Light Theme (High Contrast) --- */
     
     body {
-        background-color: #0f172a; /* Slate 900 - Solid Dark Background */
-        color: #f8fafc; /* Slate 50 - High Contrast Text */
+        background-color: #f8f9fa !important; /* Light Gray Background */
+        color: #212529 !important; /* Dark Black Text */
         font-family: 'Inter', system-ui, -apple-system, sans-serif;
     }
 
     .gradio-container {
-        background-color: #0f172a !important;
-        color: #f8fafc !important;
+        background-color: #f8f9fa !important;
+        color: #212529 !important;
+    }
+
+    /* Primary Button Style - Blue Gradient */
+    .gradio-button.primary, button.primary, .primary-btn {
+        background: linear-gradient(90deg, #0052D4, #4364F7) !important;
+        border: none !important;
+        color: white !important;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        transition: transform 0.1s ease, box-shadow 0.1s ease;
+        font-weight: 600 !important;
+    }
+    .gradio-button.primary:hover, button.primary:hover, .primary-btn:hover {
+        background: linear-gradient(90deg, #0041a8, #3651c9) !important;
+        box-shadow: 0 6px 8px rgba(0, 0, 0, 0.3);
+        transform: translateY(-1px);
+    }
+    .gradio-button.primary:active, button.primary:active, .primary-btn:active {
+        transform: translateY(1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     }
 
     /* Headings */
     h1, h2, h3, h4, h5, h6 {
-        color: #ffffff !important;
+        color: #212529 !important;
         font-weight: 700 !important;
         letter-spacing: -0.025em;
     }
 
     /* Cards / Blocks */
     .gradio-container .block, .gradio-container .panel {
-        background-color: #1e293b !important; /* Slate 800 */
-        border: 1px solid #334155 !important; /* Slate 700 */
+        background-color: #ffffff !important; /* White */
+        border: 1px solid #e9ecef !important; /* Light Gray Border */
         border-radius: 16px !important;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05) !important;
     }
 
     /* Inputs */
     input, textarea, select, .gr-input {
-        background-color: #020617 !important; /* Slate 950 */
-        border: 1px solid #475569 !important; /* Slate 600 */
-        color: #e2e8f0 !important;
+        background-color: #ffffff !important;
+        border: 2px solid #ced4da !important; /* Thicker Border */
+        color: #212529 !important;
         border-radius: 8px !important;
         padding: 10px !important;
     }
@@ -101,7 +121,8 @@ def create_main_ui():
     .gradio-container .gr-dropdown .multi-value__label,
     .gradio-container .gr-dropdown .multi-value,
     .gradio-container .gr-dropdown input {
-        color: #ffffff !important;
+        color: #212529 !important;
+        background-color: #ffffff !important;
     }
 
     label,
@@ -111,38 +132,25 @@ def create_main_ui():
     .gradio-container .gr-text,
     .gradio-container .gr-radio label,
     .gradio-container .gr-dropdown label {
-        color: #cbd5e1 !important;
+        color: #212529 !important;
+        font-weight: 700 !important; /* Bold Labels */
     }
     
     input::placeholder, textarea::placeholder {
-        color: #94a3b8 !important; /* Slate 400 */
+        color: #adb5bd !important;
     }
 
     input:focus, textarea:focus, select:focus {
-        border-color: #a855f7 !important; /* Purple 500 */
+        border-color: #0052D4 !important; /* Blue Focus */
         outline: none !important;
-        box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.2) !important;
+        box-shadow: 0 0 0 4px rgba(0, 82, 212, 0.2) !important; /* Blue Ring */
     }
 
-    /* Buttons */
-    button.primary, .primary-btn {
-        background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%) !important;
-        color: white !important;
-        border: none !important;
-        font-weight: 600 !important;
-        border-radius: 8px !important;
-        transition: opacity 0.2s ease;
-    }
-    
-    button.primary:hover {
-        opacity: 0.9;
-        box-shadow: 0 10px 15px -3px rgba(168, 85, 247, 0.3);
-    }
-
+    /* Secondary Buttons */
     button.secondary {
-        background-color: #334155 !important;
-        color: #f1f5f9 !important;
-        border: 1px solid #475569 !important;
+        background-color: #e9ecef !important;
+        color: #212529 !important;
+        border: 1px solid #ced4da !important;
     }
 
     .gradio-container input,
@@ -163,15 +171,15 @@ def create_main_ui():
 
     /* Tabs */
     .tabs {
-        border-bottom: 1px solid #334155;
+        border-bottom: 1px solid #dee2e6;
     }
     .tab-nav button {
-        color: #94a3b8 !important;
+        color: #6c757d !important;
         font-weight: 500;
     }
     .tab-nav button.selected {
-        color: #a855f7 !important;
-        border-bottom: 2px solid #a855f7 !important;
+        color: #0052D4 !important;
+        border-bottom: 2px solid #0052D4 !important;
         font-weight: 700;
     }
 
@@ -180,29 +188,29 @@ def create_main_ui():
         border-collapse: separate;
         border-spacing: 0;
         width: 100%;
-        border: 1px solid #334155;
+        border: 1px solid #dee2e6;
         border-radius: 8px;
         overflow: hidden;
     }
     th {
-        background-color: #0f172a !important;
-        color: #f8fafc !important;
+        background-color: #f8f9fa !important;
+        color: #212529 !important;
         font-weight: 600;
         padding: 12px;
         text-align: left;
-        border-bottom: 1px solid #334155;
+        border-bottom: 2px solid #dee2e6;
     }
     td {
-        background-color: #1e293b !important;
-        color: #e2e8f0 !important;
+        background-color: #ffffff !important;
+        color: #212529 !important;
         padding: 12px;
-        border-bottom: 1px solid #334155;
+        border-bottom: 1px solid #e9ecef;
     }
     tr:last-child td {
         border-bottom: none;
     }
     tr:hover td {
-        background-color: #334155 !important;
+        background-color: #f1f3f5 !important;
     }
 
     /* Login Specifics */
@@ -213,12 +221,13 @@ def create_main_ui():
     }
     #login-card {
         padding: 40px !important;
-        border: 1px solid #334155;
-        background-color: #1e293b;
+        border: 1px solid #e9ecef !important;
+        background-color: #ffffff !important;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
     }
     #hero-badge {
-        background-color: #312e81;
-        color: #c7d2fe;
+        background-color: #e0e7ff;
+        color: #3730a3;
         padding: 4px 12px;
         border-radius: 9999px;
         font-size: 0.75rem;
@@ -229,7 +238,7 @@ def create_main_ui():
     }
     #brand-logo {
         margin-bottom: 20px;
-        filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+        filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
     }
     
     /* Footer Hidden */
@@ -362,7 +371,8 @@ def create_main_ui():
     # Auto-login disabled to force Login Screen
     default_user_state = None
     
-    with gr.Blocks(title="MuseGenx1000 AI Studio Suite", theme=theme, css=css) as demo:
+    # theme=None to test Custom CSS
+    with gr.Blocks(title=t("app_title"), theme=theme, css=css) as demo:
 
         # State variables
         user_state = gr.State(value=default_user_state)
@@ -383,70 +393,70 @@ def create_main_ui():
                         container=False,
                     )
 
-                gr.Markdown("""
-                    <div style="text-align: center;">
-                        <span id='hero-badge'>BETA ACCESS</span>
-                        <h1 style="margin-top: 10px; margin-bottom: 5px;">MuseGenx1000</h1>
-                        <p style="color: #94a3b8; font-size: 1.1rem;">AI Music Studio • Professional Grade</p>
-                    </div>
+                gr.Markdown(f"""
+                        <div style="text-align: center;">
+                            <span id='hero-badge'>BETA ACCESS</span>
+                            <h1 style="margin-top: 10px; margin-bottom: 5px;">MuseGenx1000</h1>
+                            <p style="color: #94a3b8; font-size: 1.1rem;">{t("app_subtitle_pro")}</p>
+                        </div>
                     """)
 
-                with gr.Tabs(elem_id="auth-tabs"):
-                    with gr.TabItem("Login"):
+                with gr.Tabs(elem_id="auth-tabs") as auth_tabs:
+                    with gr.TabItem(t("login_tab")):
                         username_input = gr.Textbox(
-                            label="Username", placeholder="Enter your username"
+                            label=t("username_label"), placeholder=t("username_placeholder")
                         )
                         password_input = gr.Textbox(
-                            label="Password",
+                            label=t("password_label"),
                             type="password",
-                            placeholder="Enter your password",
+                            placeholder=t("password_placeholder"),
                         )
-                        login_btn = gr.Button("Sign In", variant="primary", size="lg")
+                        login_btn = gr.Button(t("login_btn"), variant="primary", size="lg")
                         login_msg = gr.Textbox(
-                            label="Status", interactive=False, visible=True
+                            label=t("status"), interactive=False, visible=True
                         )
-                    with gr.TabItem("Sign Up / สมัครสมาชิก"):
+                    with gr.TabItem(t("register_tab")):
                         # Success Modal (Hidden by default)
                         with gr.Group(
                             visible=False, elem_id="signup-success-modal"
                         ) as signup_success_modal:
-                            gr.Markdown("""
+                            gr.Markdown(f"""
                                 <div style="text-align: center; padding: 20px;">
-                                    <h2 style="color: #4ade80;">✅ Registration Successful!</h2>
-                                    <p style="font-size: 1.1rem; margin-top: 10px;">Your account has been created.</p>
-                                    <p style="color: #cbd5e1;">สมัครสมาชิกเรียบร้อยแล้ว กรุณาเข้าสู่ระบบ</p>
+                                    <h2 style="color: #4ade80;">{t('signup_success_title')}</h2>
+                                    <p style="font-size: 1.1rem; margin-top: 10px;">{t('signup_success_msg')}</p>
+                                    <p style="color: #cbd5e1;">{t('signup_success_login')}</p>
                                 </div>
                                 """)
-                            goto_login_btn = gr.Button("OK / ตกลง", variant="primary")
+                            goto_login_btn = gr.Button(t("ok_btn"), variant="primary")
 
                         # Sign Up Form
                         with gr.Column(visible=True) as signup_form_col:
                             signup_username = gr.Textbox(
-                                label="Username", placeholder="Choose a username"
+                                label=t("reg_username_label"), placeholder=t("reg_username_placeholder")
                             )
                             signup_password = gr.Textbox(
-                                label="Password",
+                                label=t("reg_password_label"),
                                 type="password",
-                                placeholder="Create a password",
+                                placeholder=t("reg_password_placeholder"),
                             )
                             signup_confirm = gr.Textbox(
-                                label="Confirm Password",
+                                label=t("confirm_password_label"),
                                 type="password",
-                                placeholder="Confirm password",
+                                placeholder=t("confirm_password_placeholder"),
                             )
                             signup_display_name = gr.Textbox(
-                                label="Display Name",
-                                placeholder="Your display name (optional)",
+                                label=t("display_name_label"),
+                                placeholder=t("display_name_placeholder"),
                             )
                             signup_email = gr.Textbox(
-                                label="Email", placeholder="Your email (optional)"
+                                label=t("email_label"), placeholder=t("email_placeholder")
                             )
                             signup_btn = gr.Button(
-                                "Create Account / สมัครสมาชิก",
+                                t("register_action_btn"),
                                 variant="primary",
                                 size="lg",
                             )
-                            signup_msg = gr.Textbox(label="Status", interactive=False)
+                            signup_msg = gr.Textbox(label=t("status"), interactive=False)
 
         # --- DASHBOARD SECTION ---
         with gr.Column(visible=False, elem_id="dashboard-view") as dashboard_view:
@@ -461,14 +471,14 @@ def create_main_ui():
                         container=False,
                         elem_classes="mx-auto block mb-4",
                     )
-                    gr.Markdown("""
+                    gr.Markdown(f"""
                         <div style="text-align: center;">
-                            <h1 style="margin-bottom: 0.5rem; font-size: 2.5rem; background: linear-gradient(to right, #a855f7, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">MuseGenx1000 Studio Hub</h1>
-                            <p style="color: #94a3b8; font-size: 1.2rem;">Your AI-Powered Creative Suite</p>
+                            <h1 style="margin-bottom: 0.5rem; font-size: 2.5rem; background: linear-gradient(to right, #a855f7, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">{t("dashboard_title_hub")}</h1>
+                            <p style="color: #94a3b8; font-size: 1.2rem;">{t("dashboard_sub")}</p>
                         </div>
                         """)
                     dashboard_welcome = gr.Markdown(
-                        "<h3 style='text-align: center; color: #e2e8f0; margin-top: 1rem;'>Welcome back!</h3>"
+                        f"<h3 style='text-align: center; color: #e2e8f0; margin-top: 1rem;'>{t('welcome_back')}</h3>"
                     )
 
             # Projects Grid
@@ -479,15 +489,14 @@ def create_main_ui():
                     min_width=320,
                     elem_classes="dashboard-card cursor-pointer border-purple-500",
                 ):
-                    gr.Markdown("### 🎵 AI Music Generator")
-                    gr.Markdown("""
+                    gr.Markdown(t("card_music_title"))
+                    gr.Markdown(f"""
                         <div style="height: 60px; color: #cbd5e1; margin-bottom: 1rem;">
-                        Create professional tracks with Suno v3.5 & v4. 
-                        Full control over lyrics, style, and structure.
+                        {t('card_music_desc')}
                         </div>
                         """)
                     musegen_launch_btn = gr.Button(
-                        "🚀 Launch Studio", variant="primary", size="lg"
+                        t("launch_music_studio"), variant="primary", size="lg"
                     )
 
                 # Project Card 2: Voice Lab (Active)
@@ -496,21 +505,20 @@ def create_main_ui():
                     min_width=320,
                     elem_classes="dashboard-card cursor-pointer border-cyan-500",
                 ):
-                    gr.Markdown("### 🎙️ Voice Lab")
-                    gr.Markdown("""
+                    gr.Markdown(t("card_voicelab_title"))
+                    gr.Markdown(f"""
                         <div style="height: 60px; color: #cbd5e1; margin-bottom: 1rem;">
-                        Clone voices and generate speech with ElevenLabs.
-                        Supports Thai language and custom voice models.
+                        {t('card_voicelab_desc')}
                         </div>
                         """)
                     voicelab_launch_btn = gr.Button(
-                        "🚀 Launch Voice Lab", variant="primary", size="lg"
+                        t("launch_voicelab"), variant="primary", size="lg"
                     )
 
             # Footer Actions
             with gr.Row(elem_classes="mt-12 justify-center"):
                 logout_btn = gr.Button(
-                    "👋 Log Out",
+                    t("logout_action"),
                     variant="secondary",
                     size="sm",
                     elem_classes="w-auto px-8",
@@ -522,7 +530,7 @@ def create_main_ui():
         with gr.Column(visible=False, elem_id="musegen-view") as musegen_view:
             with gr.Row():
                 back_dashboard_btn_1 = gr.Button(
-                    "⬅️ Back to Dashboard", size="sm", variant="secondary"
+                    t("back_to_dashboard"), size="sm", variant="secondary"
                 )
 
             with gr.Column(elem_id="musegen-shell"):
@@ -532,7 +540,7 @@ def create_main_ui():
         with gr.Column(visible=False, elem_id="voicelab-view") as voicelab_view:
             with gr.Row():
                 back_dashboard_btn_2 = gr.Button(
-                    "⬅️ Back to Dashboard", size="sm", variant="secondary"
+                    t("back_to_dashboard"), size="sm", variant="secondary"
                 )
 
             with gr.Column(elem_id="voicelab-shell"):
@@ -552,11 +560,11 @@ def create_main_ui():
             level = info.get("level") or "free"
             plan = handlers._get_plan_from_level(level)
             if plan == "easy":
-                return plan, "Easy Plan"
+                return plan, t("plan_easy")
             if plan == "standard":
-                return plan, "Standard Plan"
+                return plan, t("plan_standard")
             if plan == "pro":
-                return plan, "Pro Plan"
+                return plan, t("plan_pro")
             return plan, plan.capitalize()
 
         def build_user_obj(user_id):
@@ -577,24 +585,24 @@ def create_main_ui():
         def build_job_status(
             status, job_id, eta_seconds, priority, backend, request_id
         ):
-            state = "⏳ กำลังประมวลผล"
+            state = t("job_processing")
             if isinstance(status, str) and status.startswith("✅"):
-                state = "✅ เสร็จสิ้น"
+                state = t("job_finished")
             if isinstance(status, str) and status.startswith("❌"):
-                state = "❌ ล้มเหลว"
+                state = t("job_failed")
             pr = (priority or "low").capitalize()
             eta = f"{eta_seconds}s" if eta_seconds else "-"
             backend_label = (backend or "-").upper()
             req_mask = mask_request_id(request_id)
             job_line = (
-                f"**Job ID:** {job_id or '-'}  •  **ETA:** {eta}  •  **Queue:** {pr}"
+                f"**{t('job_id')}:** {job_id or '-'}  •  **{t('eta')}:** {eta}  •  **{t('queue')}:** {pr}"
             )
-            meta_line = f"**Backend:** {backend_label}  •  **Request ID:** {req_mask}"
+            meta_line = f"**{t('backend')}:** {backend_label}  •  **{t('req_id')}:** {req_mask}"
             return state, f"{job_line}<br>{meta_line}"
 
         def build_history_html(rows):
             if not rows:
-                return "<div style='color:#94a3b8;'>No history yet</div>"
+                return t("history_empty")
             items = []
             for row in rows:
                 if len(row) == 7:
@@ -612,26 +620,30 @@ def create_main_ui():
                     f"<div style='color:#94a3b8;font-size:12px;margin-bottom:6px;'>{style or '-'}</div>"
                     f"{audio_tag}"
                     "<div style='display:flex;gap:12px;color:#cbd5e1;font-size:12px;margin-top:8px;'>"
-                    f"<span>Job ID: {job_id if job_id is not None else '-'}</span>"
-                    f"<span>Credits: {int(cost) if cost is not None else '-'}</span>"
-                    f"<span>Backend: {backend_label}</span>"
-                    f"<span>Time: {created_at or '-'}</span>"
+                    f"<span>{t('job_id')}: {job_id if job_id is not None else '-'}</span>"
+                    f"<span>{t('credits_label')}: {int(cost) if cost is not None else '-'}</span>"
+                    f"<span>{t('backend')}: {backend_label}</span>"
+                    f"<span>{t('time_label')}: {created_at or '-'}</span>"
                     "</div></div>"
                 )
                 items.append(item)
             return "".join(items)
 
         def handle_login(username, password):
+            print(f"DEBUG: handle_login called with username='{username}', password='{password}'")
             if not username or not password:
+                print("DEBUG: Missing username or password")
                 return (
                     None,
-                    "❌ Please enter username and password",
+                    t("login_missing_creds"),
                     gr.update(visible=True),
                     gr.update(visible=False),
-                    "Welcome back!",
+                    t("welcome_back"),
                 )
 
             user_id, msg = user_db.login_user(username, password)
+            print(f"DEBUG: login_user result: user_id={user_id}, msg={msg}")
+            
             if user_id:
                 # Login Success
                 user_info = handlers.get_user_info(user_id)
@@ -641,7 +653,7 @@ def create_main_ui():
                 except Exception:
                     name = username
 
-                welcome_msg = f"<h3 style='text-align: center; color: #e2e8f0; margin-top: 1rem;'>Welcome back, <span style='color: #a855f7;'>{name}</span>!</h3>"
+                welcome_msg = f"<h3 style='text-align: center; color: #e2e8f0; margin-top: 1rem;'>{t('welcome_back_name').format(name=name)}</h3>"
 
                 return (
                     {"id": user_id, "username": username},  # Update State
@@ -657,28 +669,45 @@ def create_main_ui():
                     msg,
                     gr.update(visible=True),
                     gr.update(visible=False),
-                    "Welcome back!",
+                    t("welcome_back"),
                 )
 
         def handle_signup(username, password, confirm, display_name, email):
             if not username or not password:
                 return (
-                    "❌ กรุณากรอกชื่อผู้ใช้และรหัสผ่าน",
+                    t("login_missing_creds"),
                     gr.update(visible=False),
                     gr.update(visible=True),
+                    username, password, confirm, display_name, email,
+                    gr.update()
                 )
             if password != confirm:
                 return (
-                    "❌ รหัสผ่านไม่ตรงกัน",
+                    t("signup_password_mismatch"),
                     gr.update(visible=False),
                     gr.update(visible=True),
+                    username, password, confirm, display_name, email,
+                    gr.update()
                 )
             ok, msg = user_db.register_user(username, password, display_name, email)
 
             if ok:
-                return msg, gr.update(visible=True), gr.update(visible=False)
+                gr.Info('สมัครสมาชิกสำเร็จแล้ว! กรุณาล็อกอินเข้าสู่ระบบ')
+                return (
+                    "",  # Clear msg
+                    gr.update(visible=False),  # Hide modal (not used)
+                    gr.update(visible=True),   # Keep form visible (or reset state)
+                    "", "", "", "", "",        # Clear fields
+                    gr.update(selected=t("login_tab")) # Switch to Login Tab
+                )
             else:
-                return msg, gr.update(visible=False), gr.update(visible=True)
+                return (
+                    msg,
+                    gr.update(visible=False),
+                    gr.update(visible=True),
+                    username, password, confirm, display_name, email,
+                    gr.update()
+                )
 
         login_btn.click(
             handle_login,
@@ -701,7 +730,17 @@ def create_main_ui():
                 signup_display_name,
                 signup_email,
             ],
-            outputs=[signup_msg, signup_success_modal, signup_form_col],
+            outputs=[
+                signup_msg, 
+                signup_success_modal, 
+                signup_form_col,
+                signup_username,
+                signup_password,
+                signup_confirm,
+                signup_display_name,
+                signup_email,
+                auth_tabs
+            ],
             api_name="signup"
         )
 
@@ -718,11 +757,11 @@ def create_main_ui():
             plan, plan_name = get_plan_label(user_id)
             user_obj = build_user_obj(user_id)
             credits_value = user_obj.get("credits", 0)
-            credits_label = f"Credits: {credits_value} GG"
+            credits_label = f"{t('credits_label')}: {credits_value} GG"
             cost = ui_components.estimate_cost("easy", False)
-            plan_display = f"**Plan:** {plan_name}  •  **Credits:** {credits_value} GG"
-            cost_display = f"**Cost:** {cost} GG"
-            gen_btn_label = f"🎵 Generate Song ({cost} GG)"
+            plan_display = f"**Plan:** {plan_name}  •  **{t('credits_label')}:** {credits_value} GG"
+            cost_display = t('cost_label').format(cost=cost)
+            gen_btn_label = t('cost_btn_generate').format(cost=cost)
             inst_update = gr.update(
                 visible=False, interactive=(plan == "pro"), value=False
             )
@@ -867,6 +906,7 @@ def create_main_ui():
             treat_parens_as_instr,
             state,
             request: gr.Request,
+            progress=gr.Progress(),
         ):
             def join_values(value):
                 if isinstance(value, list):
@@ -902,6 +942,7 @@ def create_main_ui():
                 instrumental=instrumental,
                 user_id=user_id,
                 treat_parens_as_instr=treat_parens_as_instr,
+                progress=progress,
             )
             user_obj = build_user_obj(user_id)
             credits_value = user_obj.get("credits", 0)
@@ -962,7 +1003,7 @@ def create_main_ui():
                 history,
                 plan_display,
                 cost_display,
-                gr.update(value=gen_btn_label),
+                gr.update(value=gen_btn_label, interactive=True),
                 job_status,
                 job_meta,
                 download_update,
@@ -974,6 +1015,7 @@ def create_main_ui():
                 topup_resume_update,
                 user_obj,
                 pending_payload,
+                gr.update(visible=False), # Hide loading animation
             )
 
         def handle_mode_change(mode, lyrics_mode, user_obj):
@@ -1125,6 +1167,7 @@ def create_main_ui():
                     gr.update(visible=False),
                     gr.update(),
                     None,
+                    gr.update(), # loading_animation
                 )
             return handle_generate_music(
                 pending_payload.get("prompt", ""),
@@ -1200,7 +1243,21 @@ def create_main_ui():
             ],
         )
 
+        def lock_ui_confirm():
+            return (
+                gr.update(visible=True),
+                gr.update(interactive=False),
+                gr.update(visible=False),
+            )
+
         musegen_components["confirm_btn"].click(
+            lock_ui_confirm,
+            outputs=[
+                musegen_components["loading_animation"],
+                musegen_components["gen_btn"],
+                musegen_components["confirm_group"],
+            ]
+        ).then(
             handle_generate_music,
             inputs=[
                 musegen_components["prompt"],
@@ -1234,6 +1291,7 @@ def create_main_ui():
                 musegen_components["topup_resume"],
                 musegen_user_obj,
                 pending_generation_state,
+                musegen_components["loading_animation"],
             ],
         )
 
@@ -1308,7 +1366,21 @@ def create_main_ui():
             ],
         )
 
+        def lock_ui_resume():
+            return (
+                gr.update(visible=True),
+                gr.update(interactive=False),
+                gr.update(visible=False),
+            )
+
         musegen_components["topup_resume"].click(
+            lock_ui_resume,
+            outputs=[
+                musegen_components["loading_animation"],
+                musegen_components["gen_btn"],
+                musegen_components["topup_group"],
+            ]
+        ).then(
             resume_generation,
             inputs=[pending_generation_state, user_state],
             outputs=[
@@ -1331,18 +1403,19 @@ def create_main_ui():
                 musegen_components["topup_resume"],
                 musegen_user_obj,
                 pending_generation_state,
+                musegen_components["loading_animation"],
             ],
         )
 
         def approve_topup(tx_id, request: gr.Request):
-            msg = handlers.approve_tx(tx_id)
+            msg = handlers.approve_tx(tx_id, request)
             admin_profit, admin_topups, admin_users, admin_status = (
                 handlers.on_admin_refresh(request)
             )
             return msg, admin_profit, admin_topups, admin_users, admin_status
 
         def reject_topup(tx_id, request: gr.Request):
-            msg = handlers.reject_tx(tx_id)
+            msg = handlers.reject_tx(tx_id, request)
             admin_profit, admin_topups, admin_users, admin_status = (
                 handlers.on_admin_refresh(request)
             )
@@ -1374,6 +1447,69 @@ def create_main_ui():
         musegen_components["admin_reject_btn"].click(
             reject_topup,
             inputs=[musegen_components["admin_tx_id"]],
+            outputs=[
+                musegen_components["admin_action_msg"],
+                musegen_components["admin_profit"],
+                musegen_components["admin_topups_table"],
+                musegen_components["admin_users_table"],
+                musegen_components["admin_status"],
+            ],
+        )
+
+        def admin_delete_user_wrapper(target_id, request: gr.Request):
+            msg = handlers.on_admin_delete_user(target_id, request)
+            admin_profit, admin_topups, admin_users, admin_status = (
+                handlers.on_admin_refresh(request)
+            )
+            return msg, admin_profit, admin_topups, admin_users, admin_status
+
+        def admin_add_gg_wrapper(target_id, amount, request: gr.Request):
+            msg = handlers.on_admin_add_gg(target_id, amount, request)
+            admin_profit, admin_topups, admin_users, admin_status = (
+                handlers.on_admin_refresh(request)
+            )
+            return msg, admin_profit, admin_topups, admin_users, admin_status
+
+        def admin_set_level_wrapper(target_id, level, request: gr.Request):
+            msg = handlers.on_admin_set_level(target_id, level, request)
+            admin_profit, admin_topups, admin_users, admin_status = (
+                handlers.on_admin_refresh(request)
+            )
+            return msg, admin_profit, admin_topups, admin_users, admin_status
+
+        musegen_components["admin_delete_btn"].click(
+            admin_delete_user_wrapper,
+            inputs=[musegen_components["admin_target_user_id"]],
+            outputs=[
+                musegen_components["admin_action_msg"],
+                musegen_components["admin_profit"],
+                musegen_components["admin_topups_table"],
+                musegen_components["admin_users_table"],
+                musegen_components["admin_status"],
+            ],
+        )
+
+        musegen_components["admin_add_gg_btn"].click(
+            admin_add_gg_wrapper,
+            inputs=[
+                musegen_components["admin_target_user_id"],
+                musegen_components["admin_add_gg_amount"],
+            ],
+            outputs=[
+                musegen_components["admin_action_msg"],
+                musegen_components["admin_profit"],
+                musegen_components["admin_topups_table"],
+                musegen_components["admin_users_table"],
+                musegen_components["admin_status"],
+            ],
+        )
+
+        musegen_components["admin_set_level_btn"].click(
+            admin_set_level_wrapper,
+            inputs=[
+                musegen_components["admin_target_user_id"],
+                musegen_components["admin_set_level_dropdown"],
+            ],
             outputs=[
                 musegen_components["admin_action_msg"],
                 musegen_components["admin_profit"],

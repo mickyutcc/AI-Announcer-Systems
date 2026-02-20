@@ -18,7 +18,9 @@ from config import (
     PAYMENT_QR_PATH,
     MOODS,
     TOPUP_PACKAGES,
+    VOCALIST_TYPES,
 )
+from locales import t
 
 
 def estimate_cost(mode: str, instrumental: bool) -> int:
@@ -45,9 +47,9 @@ def on_mode_change(mode: str, lyrics_mode: str, user_plan: str):
     show_instrumental_opt = mode == "pro"
     show_reference = mode == "pro"
     cost = estimate_cost(mode, instrumental=False)
-    btn_label = "Unavailable" if cost < 0 else f"🎵 Generate Song ({cost} GG)"
+    btn_label = t("cost_btn_unavailable") if cost < 0 else t("cost_btn_generate").format(cost=cost)
     if needs_upgrade:
-        btn_label = f"Upgrade required • {btn_label}"
+        btn_label = t("cost_btn_need_upgrade").format(btn_label=btn_label)
     return (
         gr.update(visible=show_custom_lyrics),
         gr.update(visible=show_custom_lyrics),  # treat_parens_as_instr
@@ -58,7 +60,7 @@ def on_mode_change(mode: str, lyrics_mode: str, user_plan: str):
         ),
         gr.update(visible=show_reference),
         gr.update(value=btn_label, interactive=not needs_upgrade),
-        gr.update(value=f"**Cost:** {cost} GG" if cost >= 0 else "**Cost:** -"),
+        gr.update(value=t("cost_label").format(cost=cost) if cost >= 0 else t("cost_free")),
         gr.update(visible=False),
         "",
     )
@@ -71,25 +73,25 @@ def on_instrumental_change(mode: str, instrumental: bool, user_plan: str):
         return (
             gr.update(
                 interactive=False,
-                value=f"Upgrade required • 🎵 Generate Song ({max(cost, 0)} GG)",
+                value=t("cost_btn_need_upgrade").format(btn_label=t("cost_btn_generate").format(cost=max(cost, 0))),
             ),
-            gr.update(value=f"**Cost:** {max(cost, 0)} GG"),
+            gr.update(value=t("cost_label").format(cost=max(cost, 0))),
             gr.update(visible=False),
-            "กรุณาอัปเกรดแพ็กเกจเพื่อใช้งานโหมดนี้",
+            t("msg_upgrade_req"),
         )
     if cost < 0:
         return (
             gr.update(
                 interactive=False,
-                value="Instrumental: Pro only (Upgrade)",
+                value=t("instr_pro_only"),
             ),
-            gr.update(value="**Cost:** -"),
+            gr.update(value=t("cost_free")),
             gr.update(visible=False),
-            "Instrumental ใช้ได้เฉพาะ Pro เท่านั้น",
+            t("msg_instr_pro_only"),
         )
     return (
-        gr.update(interactive=True, value=f"🎵 Generate Song ({cost} GG)"),
-        gr.update(value=f"**Cost:** {cost} GG"),
+        gr.update(interactive=True, value=t("cost_btn_generate").format(cost=cost)),
+        gr.update(value=t("cost_label").format(cost=cost)),
         gr.update(visible=False),
         "",
     )
@@ -112,7 +114,7 @@ def on_generate_click(
     cost = estimate_cost(mode, instrumental)
     if _needs_upgrade(user_plan, mode):
         return (
-            "กรุณาอัปเกรดแพ็กเกจเพื่อใช้งานโหมดนี้",
+            t("msg_upgrade_req"),
             gr.update(visible=False),
             "",
             gr.update(visible=False),
@@ -123,7 +125,7 @@ def on_generate_click(
         )
     if cost < 0:
         return (
-            "Instrumental ใช้ได้เฉพาะ Pro เท่านั้น",
+            t("msg_instr_pro_only"),
             gr.update(visible=False),
             "",
             gr.update(visible=False),
@@ -135,13 +137,13 @@ def on_generate_click(
     if user_credits < cost:
         required = max(GG_TOPUP_MIN, cost - user_credits)
         return (
-            "ยอดเครดิตไม่พอ — เติมขั้นต่ำ 10 GG",
+            t("msg_credit_low"),
             gr.update(visible=False),
             "",
             gr.update(visible=True),
             gr.update(
                 visible=True,
-                value="เติมขั้นต่ำ 10 GG / เลือกแพ็กเพื่อรับโบนัส",
+                value=t("msg_topup_bonus"),
             ),
             gr.update(value=required),
             gr.update(visible=False),
@@ -157,9 +159,7 @@ def on_generate_click(
                 "treat_parens_as_instr": treat_parens_as_instr,
             },
         )
-    confirm_text = (
-        f"ใช้ {cost} GG เพื่อสร้างเพลงนี้ เหลือ {user_credits - cost} GG ยืนยันหรือไม่?"
-    )
+    confirm_text = t("msg_confirm_deduct").format(cost=cost, remaining=user_credits - cost)
     return (
         "",
         gr.update(visible=True),
@@ -174,76 +174,76 @@ def on_generate_click(
 
 def render_voice_lab(user_state):
     """Render the Voice Lab content"""
-    gr.Markdown("### 🎙️ Voice Lab - Text to Speech")
+    gr.Markdown(t("voicelab_header"))
     gr.Markdown(
-        "Convert text to lifelike speech using ElevenLabs technology. Supports Thai language."
+        t("voicelab_subheader")
     )
 
     with gr.Row():
         with gr.Column(scale=1):
             voice_text = gr.Textbox(
-                label="Text to Speech",
-                placeholder="พิมพ์ข้อความที่นี่... (รองรับภาษาไทย)",
+                label=t("voice_text_label"),
+                placeholder=t("voice_text_placeholder"),
                 lines=5,
             )
 
             with gr.Row():
                 voice_id = gr.Dropdown(
-                    label="Voice ID",
+                    label=t("voice_id_label"),
                     choices=[
-                        ("Rachel (American, Calm)", "21m00Tcm4TlvDq8ikWAM"),
-                        ("Domi (American, Strong)", "AZnzlk1XvdvUeBnXmlld"),
-                        ("Bella (American, Soft)", "EXAVITQu4vr4xnSDxMaL"),
-                        ("Antoni (American, Deep)", "ErXwobaYiN019PkySvjV"),
-                        ("Josh (American, Deep)", "TxGEqnHWrfWFTfGW9XjX"),
+                        (t("voice_rachel"), "21m00Tcm4TlvDq8ikWAM"),
+                        (t("voice_domi"), "AZnzlk1XvdvUeBnXmlld"),
+                        (t("voice_bella"), "EXAVITQu4vr4xnSDxMaL"),
+                        (t("voice_antoni"), "ErXwobaYiN019PkySvjV"),
+                        (t("voice_josh"), "TxGEqnHWrfWFTfGW9XjX"),
                     ],
                     value="21m00Tcm4TlvDq8ikWAM",
                     allow_custom_value=True,
-                    info="Select a preset or enter a custom Voice ID",
+                    info=t("voice_id_info"),
                 )
                 voice_model = gr.Dropdown(
-                    label="Model",
+                    label=t("voice_model_label"),
                     choices=[
-                        "eleven_multilingual_v2",
-                        "eleven_monolingual_v1",
-                        "eleven_turbo_v2",
+                        (t("voice_model_multilingual_rec"), "eleven_multilingual_v2"),
+                        (t("voice_model_monolingual"), "eleven_monolingual_v1"),
+                        (t("voice_model_turbo"), "eleven_turbo_v2"),
                     ],
                     value="eleven_multilingual_v2",
-                    info="Use Multilingual v2 for Thai",
+                    info=t("voice_model_info"),
                 )
 
-            with gr.Accordion("Advanced Settings", open=False):
+            with gr.Accordion(t("adv_settings"), open=False):
                 stability = gr.Slider(
-                    label="Stability",
+                    label=t("stability_label"),
                     minimum=0.0,
                     maximum=1.0,
                     value=0.4,
                     step=0.05,
-                    info="Lower = more expressive/unstable, Higher = more consistent/monotone",
+                    info=t("stability_info"),
                 )
                 similarity = gr.Slider(
-                    label="Similarity Boost",
+                    label=t("similarity_label"),
                     minimum=0.0,
                     maximum=1.0,
                     value=0.1,
                     step=0.05,
-                    info="Higher = closer to original voice, Lower = more generation variation (Recommended ~0.1 for Thai)",
+                    info=t("similarity_info"),
                 )
                 consent_checkbox = gr.Checkbox(
-                    label="ยืนยันสิทธิ์และความยินยอมในการสร้างเสียง", value=False
+                    label=t("consent_label"), value=False
                 )
 
-            gen_btn = gr.Button("Generate Speech (2 GG)", variant="primary", size="lg")
+            gen_btn = gr.Button(t("btn_generate_voice"), variant="primary", size="lg")
 
         with gr.Column(scale=1):
             voice_output = gr.Audio(
-                label="Generated Audio", type="filepath", interactive=False
+                label=t("voice_output_label"), type="filepath", interactive=False
             )
             voice_status = gr.Markdown("")
 
-            gr.Markdown("#### Tips for Thai Language")
+            gr.Markdown(t("voice_tips_header"))
             gr.Info(
-                "Use 'eleven_multilingual_v2' for best Thai results. Adjust Stability to 0.35-0.5 for natural intonation."
+                t("voice_tips_info")
             )
 
     return {
@@ -271,55 +271,116 @@ def render_musegen_tab(user_state):
                 break
 
     gr.Markdown(
-        "### <span id='musegen-hero'>MuseGenx1000 • AI Music Engine v2.0</span>"
+        f"### <span id='musegen-hero'>{t('app_header')}</span>"
     )
     gr.HTML("""
         <style>
             #musegen-status-msg { display: none !important; }
+            
+            /* Loading Container */
             #musegen-loading {
-                display: none;
+                display: none; /* Hidden by default */
                 flex-direction: column;
                 align-items: center;
                 justify-content: center;
-                padding: 24px;
-                background: rgba(15, 23, 42, 0.9);
+                padding: 40px;
+                background: rgba(15, 23, 42, 0.5);
                 border-radius: 16px;
-                margin-bottom: 20px;
-                border: 1px solid rgba(168, 85, 247, 0.3);
-                box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+                margin: 20px 0;
+                border: 1px solid rgba(168, 85, 247, 0.2);
+                backdrop-filter: blur(10px);
             }
-            #musegen-loading.loading { display: flex; }
-            /* ... animations ... */
+            
+            /* Show when active class is added (controlled by JS or visible prop if using Gradio logic, 
+               but here we might toggle visibility via component update) */
+            
+            /* Sound Wave Animation */
+            .music-wave {
+                height: 60px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+                margin-bottom: 20px;
+            }
+            
+            .music-wave .bar {
+                width: 8px;
+                height: 100%;
+                background: linear-gradient(to top, #9333ea, #c084fc);
+                border-radius: 99px;
+                animation: wave-animation 1.2s ease-in-out infinite;
+            }
+            
+            .music-wave .bar:nth-child(1) { animation-delay: -1.1s; }
+            .music-wave .bar:nth-child(2) { animation-delay: -1.0s; }
+            .music-wave .bar:nth-child(3) { animation-delay: -0.9s; }
+            .music-wave .bar:nth-child(4) { animation-delay: -0.8s; }
+            .music-wave .bar:nth-child(5) { animation-delay: -0.7s; }
+            .music-wave .bar:nth-child(6) { animation-delay: -0.6s; }
+            
+            @keyframes wave-animation {
+                0%, 40%, 100% { height: 20%; opacity: 0.6; }
+                20% { height: 100%; opacity: 1; box-shadow: 0 0 15px rgba(168, 85, 247, 0.6); }
+            }
+            
+            .loading-text {
+                color: #e2e8f0;
+                font-size: 1.25rem;
+                font-weight: 600;
+                text-align: center;
+                text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            }
+            
+            .loading-subtext {
+                color: #94a3b8;
+                font-size: 0.95rem;
+                margin-top: 8px;
+                text-align: center;
+            }
         </style>
         
-        <div id="musegen-loading">
-            <h3 style="color: #e2e8f0;">Creating your masterpiece...</h3>
+        <div id="musegen-loading-container">
+            <!-- Content will be injected or toggled via Gradio updates -->
         </div>
         """)
+    
+    loading_animation = gr.HTML("""
+        <div class="music-wave">
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+        </div>
+        <div class="loading-text">กำลังประพันธ์เพลง...</div>
+        <div class="loading-subtext">AI กำลังวิเคราะห์และสร้างสรรค์ทำนอง</div>
+    """, visible=False)
 
     with gr.Tabs():
-        with gr.TabItem("Generate"):
+        with gr.TabItem(t("tab_create_music")):
             with gr.Row():
                 with gr.Column(scale=1):
                     prompt = gr.Textbox(
-                        label="Song Description (Prompt)",
-                        placeholder="A sad song about a robot who fell in love with a toaster...",
+                        label=t("prompt"),
+                        placeholder=t("prompt_placeholder"),
                         lines=3,
                     )
 
-                    with gr.Accordion("Advanced Settings", open=True):
+                    with gr.Accordion(t("adv_settings_accord"), open=True):
                         with gr.Row():
                             style = gr.Dropdown(
-                                label="Musical Style",
-                                choices=GENRES + ["Custom"],
+                                label=t("style"),
+                                choices=GENRES + [(t("style_custom"), "Custom")],
                                 value=["Pop"],
                                 allow_custom_value=True,
                                 interactive=True,
                                 multiselect=True,
-                                info="เลือกแนวเพลง — จะถูกแปลงเป็นคำสั่งสำหรับตัวสร้างดนตรี",
+                                info=t("style_info"),
                             )
                             mood = gr.Dropdown(
-                                label="Mood",
+                                label=t("mood"),
                                 choices=MOODS,
                                 value=["Energetic"],
                                 interactive=True,
@@ -327,68 +388,58 @@ def render_musegen_tab(user_state):
                                 multiselect=True,
                             )
                         gr.Markdown(
-                            "ตัวอย่าง: เลือก “ลูกทุ่ง” หรือ “หมอลำ” ถ้าต้องการสำเนียงไทยพื้นบ้าน"
+                            t("mood_example")
                         )
 
                         with gr.Row():
                             vocalist = gr.Dropdown(
-                                label="Vocalist Type",
-                                choices=[
-                                    "Male",
-                                    "Female",
-                                    "Duet",
-                                    "Choir",
-                                    "Child",
-                                    "Elderly",
-                                    "Robot",
-                                    "Non-binary",
-                                    "Any",
-                                ],
+                                label=t("vocalist"),
+                                choices=VOCALIST_TYPES,
                                 value="Any",
                                 interactive=True,
-                                info="Select the type of vocalist",
+                                info=t("vocalist_info"),
                             )
 
                         with gr.Row():
                             mode = gr.Radio(
-                                label="Generation Mode",
-                                choices=["easy", "standard", "pro"],
+                                label=t("mode"),
+                                choices=[(t("mode_easy_desc"), "easy"), (t("mode_standard_desc"), "standard"), (t("mode_pro_desc"), "pro")],
                                 value="easy",
-                                info="Easy=Quick, Standard=Balanced, Pro=High Quality",
+                                info=t("mode_info"),
                                 interactive=True,
                             )
                             lyrics_mode = gr.Dropdown(
-                                label="Lyrics Mode",
-                                choices=["AI", "Custom"],
+                                label=t("lyrics_mode"),
+                                choices=[(t("lyrics_mode_ai_desc"), "AI"), (t("lyrics_mode_custom_desc"), "Custom")],
                                 value="AI",
                                 interactive=True,
                             )
-                    instrumental_checkbox = gr.Checkbox(
-                        label="Add Instrumental (+3 GG, Pro only)",
+                            instrumental_checkbox = gr.Checkbox(
+                        label=t("instrumental_label"),
                         visible=False,
                         value=False,
-                        info="Available on Pro",
+                        info=t("instrumental_info"),
                     )
                     with gr.Row(visible=False) as reference_row:
                         reference_upload = gr.File(
-                            label="Reference Upload", visible=True
+                            label=t("reference_upload"), visible=True
                         )
-                    midi_upload = gr.File(label="MIDI Upload", visible=False)
-                    phonetic_text = gr.Textbox(label="Phonetic Guide", visible=False)
+                    midi_upload = gr.File(label=t("midi_upload"), visible=False)
+                    phonetic_text = gr.Textbox(label=t("phonetic_text"), visible=False)
 
                     custom_lyrics = gr.Textbox(
-                        label="Custom Lyrics",
-                        placeholder="Enter your lyrics here...",
+                        label=t("custom_lyrics"),
+                        placeholder=t("custom_lyrics_placeholder"),
                         lines=8,
                         visible=False,
-                        info="ข้อความในวงเล็บจะไม่ถูกร้อง หากต้องการให้เป็นเสียงเครื่องดนตรีให้วางในช่อง Instrumental/Notes"
+                        info=t("custom_lyrics_info")
                     )
                     
                     treat_parens_as_instr = gr.Checkbox(
-                        label="Treat parenthetical lines as instructions (not sung)",
+                        label=t("treat_parens_as_instr"),
                         value=True,
                         visible=False,
-                        info="หากเปิดใช้งาน ข้อความใน (วงเล็บ) จะถูกส่งเป็นคำสั่งดนตรีและจะไม่ถูกร้อง"
+                        info=t("treat_parens_as_instr_info")
                     )
 
                     def on_lyrics_change(mode_value, lyrics_value):
@@ -407,52 +458,53 @@ def render_musegen_tab(user_state):
                     plan_display = gr.Markdown("")
                     cost_display = gr.Markdown("")
                     gen_btn = gr.Button(
-                        "🎵 Generate Song (6 GG)", variant="primary", size="lg"
+                        t("generate_btn"), variant="primary", size="lg"
                     )
                     with gr.Group(visible=False) as confirm_group:
                         confirm_text = gr.Markdown("")
                         with gr.Row():
-                            confirm_btn = gr.Button("Confirm", variant="primary")
+                            confirm_btn = gr.Button(t("confirm_btn"), variant="primary")
                             confirm_cancel_btn = gr.Button(
-                                "Cancel", variant="secondary"
+                                t("cancel_btn"), variant="secondary"
                             )
 
                     with gr.Group(visible=False, elem_id="musegen-topup-card") as topup_group:
-                        gr.Markdown("### เติมเครดิต GG (ขั้นต่ำ 10 GG)")
+                        gr.Markdown(t("topup_title"))
                         topup_subtitle = gr.Markdown(
-                            "ใส่จำนวน (ขั้นต่ำ 10 GG) หรือเลือกแพ็กด้านล่าง"
+                            t("topup_subtitle")
                         )
                         topup_qr = gr.Image(
                             value=PAYMENT_QR_PATH,
                             visible=True,
                             width=300,
-                            label="Scan to Pay",
+                            label=t("scan_to_pay"),
                         )
                         with gr.Row():
-                            topup_quick_10 = gr.Button("10 GG", variant="secondary")
-                            topup_quick_30 = gr.Button("30 GG", variant="secondary")
-                            topup_quick_100 = gr.Button("100 GG", variant="primary")
+                            topup_quick_10 = gr.Button(t("quick_topup").format(amount=10), variant="secondary")
+                            topup_quick_30 = gr.Button(t("quick_topup").format(amount=30), variant="secondary")
+                            topup_quick_100 = gr.Button(t("quick_topup").format(amount=100), variant="primary")
                         topup_amount = gr.Number(
-                            label="จำนวน GG ที่ต้องการเติม",
+                            label=t("topup_amount_label"),
                             value=TOPUP_PACKAGES[2]["gg"],
                             precision=0,
                             minimum=GG_TOPUP_MIN,
                             step=1,
                         )
                         topup_method = gr.Dropdown(
-                            label="ช่องทางชำระเงิน",
-                            choices=["PromptPay", "Card", "Wallet"],
+                            label=t("payment_method"),
+                            choices=[(t("pay_promptpay"), "PromptPay"), (t("pay_card"), "Card"), (t("pay_wallet"), "Wallet")],
                             value="PromptPay",
                         )
                         topup_slip_upload = gr.File(
-                            label="อัปโหลดสลิปการโอนเงิน",
+                            label=t("upload_slip"),
                             file_types=["image"],
                         )
-                        topup_note = gr.Markdown("เติมขั้นต่ำ 10 GG / เลือกแพ็กเพื่อรับโบนัส")
+                        topup_note = gr.Markdown(t("topup_note"))
                         topup_pack_buttons = []
                         with gr.Row():
                             for pack in TOPUP_PACKAGES:
-                                label = f"{pack['label']} • {pack['gg']} GG • {pack['price_thb']} THB"
+                                pack_label = t(f"pack_{pack['key']}")
+                                label = f"{pack_label} • {pack['gg']} GG • {pack['price_thb']} {t('currency_thb')}"
                                 if pack.get("bonus_pct", 0):
                                     label = f"{label} (+{int(pack['bonus_pct'] * 100)}%)"
                                 topup_pack_buttons.append(
@@ -460,67 +512,78 @@ def render_musegen_tab(user_state):
                                 )
                         topup_msg = gr.Markdown("", visible=False)
                         with gr.Row():
-                            topup_submit = gr.Button("ชำระและเติมเครดิต", variant="primary")
-                            topup_cancel = gr.Button("ยกเลิก", variant="secondary")
+                            topup_submit = gr.Button(t("pay_and_topup"), variant="primary")
+                            topup_cancel = gr.Button(t("cancel_btn"), variant="secondary")
                         topup_resume = gr.Button(
-                            "กลับไปสร้างเพลง (ใช้ 6 GG)", variant="primary", visible=False
+                            t("resume_create"), variant="primary", visible=False
                         )
 
                 with gr.Column(scale=1):
                     with gr.Row():
-                        user_info_display = gr.Markdown("Loading user info...")
-                        credits_display = gr.Markdown("Loading credits...")
+                        user_info_display = gr.Markdown(t("loading_user_info"))
+                        credits_display = gr.Markdown(t("loading_credits"))
                         topup_open_btn = gr.Button(
-                            "เติมเครดิต", variant="secondary", size="sm"
+                            t("topup_btn"), variant="secondary", size="sm"
                         )
 
                     audio_out = gr.Audio(
-                        label="Generated Song", type="filepath", interactive=False
+                        label=t("generated_song"), type="filepath", interactive=False
                     )
                     status_msg = gr.Markdown("", elem_id="musegen-status-msg")
                     job_status = gr.Markdown("")
                     job_meta = gr.Markdown("")
                     download_file = gr.File(
-                        label="Download", interactive=False, visible=False
+                        label=t("download"), interactive=False, visible=False
                     )
 
                     gg_left_display = gr.Markdown(visible=False)
 
-                    gr.Markdown("### Recent History")
+                    gr.Markdown(t("recent_history"))
                     history_list = gr.HTML("")
-        with gr.TabItem("Admin Management", visible=False) as admin_tab:
+        with gr.TabItem(t("admin_management"), visible=False) as admin_tab:
             with gr.Column(elem_id="musegen-admin-card"):
-                gr.Markdown("### Admin Management")
-                admin_status = gr.Markdown("Ready")
+                gr.Markdown(t("admin_management"))
+                admin_status = gr.Markdown(f"{t('admin_status')}: {t('admin_ready')}")
                 with gr.Row():
-                    admin_profit = gr.Markdown("Total Profit: N/A")
-                    admin_refresh_btn = gr.Button("Refresh", variant="secondary")
-                gr.Markdown("#### Pending Topups")
+                    admin_profit = gr.Markdown(t("total_profit"))
+                    admin_refresh_btn = gr.Button(t("refresh"), variant="secondary")
+                gr.Markdown(t("pending_topups"))
                 admin_topups_table = gr.Dataframe(
-                    headers=["ID", "Username", "Amount", "Date", "Proof"],
+                    headers=[t("col_id"), t("col_username"), t("col_amount"), t("col_date"), t("col_proof")],
                     datatype=["number", "str", "number", "str", "str"],
                     interactive=False,
                     row_count=5,
                 )
                 with gr.Row():
-                    admin_tx_id = gr.Textbox(label="Transaction ID")
-                    admin_approve_btn = gr.Button("Approve", variant="primary")
-                    admin_reject_btn = gr.Button("Reject", variant="secondary")
+                    admin_tx_id = gr.Textbox(label=t("transaction_id"))
+                    admin_approve_btn = gr.Button(t("approve"), variant="primary")
+                    admin_reject_btn = gr.Button(t("reject"), variant="secondary")
                 admin_action_msg = gr.Markdown("")
-                gr.Markdown("#### Users")
+                gr.Markdown(t("users"))
                 admin_users_table = gr.Dataframe(
                     headers=[
-                        "ID",
-                        "Username",
-                        "Email",
-                        "Level",
-                        "Balance",
-                        "Created At",
+                        t("col_id"),
+                        t("col_username"),
+                        t("col_email"),
+                        t("col_level"),
+                        t("col_balance"),
+                        t("col_created_at"),
                     ],
                     datatype=["number", "str", "str", "str", "number", "str"],
                     interactive=False,
                     row_count=10,
                 )
+                with gr.Row():
+                    admin_target_user_id = gr.Textbox(label=t("target_user_id"))
+                    admin_delete_btn = gr.Button(t("delete_user"), variant="stop")
+                with gr.Row():
+                    admin_add_gg_amount = gr.Textbox(label=t("amount_gg"))
+                    admin_add_gg_btn = gr.Button(t("add_gg"), variant="secondary")
+                with gr.Row():
+                    admin_set_level_dropdown = gr.Dropdown(
+                        choices=["free", "pro", "admin"], label=t("user_level")
+                    )
+                    admin_set_level_btn = gr.Button(t("set_level"), variant="secondary")
 
     return {
         "prompt": prompt,
@@ -578,4 +641,11 @@ def render_musegen_tab(user_state):
         "admin_approve_btn": admin_approve_btn,
         "admin_reject_btn": admin_reject_btn,
         "admin_action_msg": admin_action_msg,
+        "admin_target_user_id": admin_target_user_id,
+        "admin_delete_btn": admin_delete_btn,
+        "admin_add_gg_amount": admin_add_gg_amount,
+        "admin_add_gg_btn": admin_add_gg_btn,
+        "admin_set_level_dropdown": admin_set_level_dropdown,
+        "admin_set_level_btn": admin_set_level_btn,
+        "loading_animation": loading_animation,
     }

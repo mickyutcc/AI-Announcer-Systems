@@ -11,6 +11,7 @@ from typing import Any
 
 import config
 import utils
+from locales import t
 
 DB_PATH = os.getenv("SQLITE_DB_PATH", os.path.join(os.path.dirname(__file__), "musegenx1000.db"))
 
@@ -30,7 +31,7 @@ GG_TOPUP_MIN = config.GG_TOPUP_MIN
 
 LEVEL_CONFIG: dict[str, dict[str, Any]] = {
     "free": {
-        "label": "🆓 Free",
+        "label": t("level_free_label"),
         "price_usd": 0,
         "gg_reward": config.GG_SIGNUP_BONUS,
         "allowed_modes": ["easy"],
@@ -44,10 +45,10 @@ LEVEL_CONFIG: dict[str, dict[str, Any]] = {
             "instrumental": True,
             "custom_tags": False,
         },
-        "description": "โหมดง่ายเท่านั้น • ได้รับ 9 GG ฟรี",
+        "description": t("level_free_desc"),
     },
     "basic": {
-        "label": "⭐ Basic",
+        "label": t("level_basic_label"),
         "price_usd": 20,
         "gg_reward": 40,
         "allowed_modes": ["easy", "standard"],
@@ -61,10 +62,10 @@ LEVEL_CONFIG: dict[str, dict[str, Any]] = {
             "instrumental": True,
             "custom_tags": True,
         },
-        "description": "โหมดง่าย + มาตรฐาน • $20 → 40 GG • Mix & Master",
+        "description": t("level_basic_desc"),
     },
     "pro": {
-        "label": "💎 Pro",
+        "label": t("level_pro_label"),
         "price_usd": 45,
         "gg_reward": 90,
         "allowed_modes": ["easy", "standard", "advance"],
@@ -78,10 +79,10 @@ LEVEL_CONFIG: dict[str, dict[str, Any]] = {
             "instrumental": True,
             "custom_tags": True,
         },
-        "description": "ทุกโหมด • $45 → 90 GG • Voice Clone • LLM Lyrics",
+        "description": t("level_pro_desc"),
     },
     "admin": {
-        "label": "👑 Admin",
+        "label": t("level_admin_label"),
         "price_usd": 0,
         "gg_reward": 0,
         "allowed_modes": ["easy", "standard", "advance"],
@@ -95,7 +96,7 @@ LEVEL_CONFIG: dict[str, dict[str, Any]] = {
             "instrumental": True,
             "custom_tags": True,
         },
-        "description": "ทุกฟีเจอร์ • ไม่จำกัด GG • จัดการสมาชิก",
+        "description": t("level_admin_desc"),
     },
 }
 
@@ -233,11 +234,11 @@ def register_user(
 ) -> tuple[bool, str]:
     """ลงทะเบียนผู้ใช้ใหม่ + ให้ GG ฟรีตามเลเวล Free"""
     if not username or not password:
-        return False, "❌ กรุณากรอกชื่อผู้ใช้และรหัสผ่าน"
+        return False, t("err_missing_credentials")
     if len(username) < 3:
-        return False, "❌ ชื่อผู้ใช้ต้องมีอย่างน้อย 3 ตัวอักษร"
+        return False, t("err_username_too_short")
     if len(password) < 4:
-        return False, "❌ รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร"
+        return False, t("err_password_too_short")
     free_gg = LEVEL_CONFIG["free"]["gg_reward"]
     conn = _get_conn()
     try:
@@ -276,37 +277,48 @@ def register_user(
         if is_first_user:
             return (
                 True,
-                f"✅ สมัครสำเร็จ! 👑 คุณเป็นผู้ใช้คนแรก — ได้รับสิทธิ์ Admin + {initial_gg} GG ฟรี! 🎉",
+                t("success_register_admin").format(gg=initial_gg),
             )
         return (
             True,
-            f"✅ สมัครสมาชิกสำเร็จ! ยินดีต้อนรับ {display_name or username} — ได้รับ {initial_gg} GG ฟรี! 🎉",
+            t("success_register_user").format(name=display_name or username, gg=initial_gg),
         )
     except sqlite3.IntegrityError:
-        return False, "❌ ชื่อผู้ใช้นี้ถูกใช้แล้ว กรุณาเลือกชื่ออื่น"
+        return False, t("err_username_exists")
     finally:
         conn.close()
 
 
 def login_user(username: str, password: str) -> tuple[int | None, str]:
     """ล็อกอิน คืน (user_id หรือ None, ข้อความ)"""
+    print(f"DEBUG: login_user called with username='{username}', password='{password}'")
     if not username or not password:
-        return None, "❌ กรุณากรอกชื่อผู้ใช้และรหัสผ่าน"
+        return None, t("err_missing_credentials")
     conn = _get_conn()
+    hashed = _hash_password(password)
+    print(f"DEBUG: hashed password: {hashed}")
     row = conn.execute(
-        "SELECT id, display_name FROM users WHERE username=? AND password_hash=?",
-        (username.strip(), _hash_password(password)),
+        "SELECT id, display_name, password_hash FROM users WHERE username=?",
+        (username.strip(),),
     ).fetchone()
+    
     if row:
-        conn.execute(
-            "UPDATE users SET last_login=datetime('now','localtime') WHERE id=?",
-            (row["id"],),
-        )
-        conn.commit()
-        conn.close()
-        return row["id"], f"✅ เข้าสู่ระบบสำเร็จ! สวัสดี {row['display_name']}"
+        print(f"DEBUG: Found user {username}, stored hash: {row['password_hash']}")
+        if row['password_hash'] == hashed:
+            conn.execute(
+                "UPDATE users SET last_login=datetime('now','localtime') WHERE id=?",
+                (row["id"],),
+            )
+            conn.commit()
+            conn.close()
+            return row["id"], f"✅ เข้าสู่ระบบสำเร็จ! สวัสดี {row['display_name']}"
+        else:
+            print("DEBUG: Password mismatch")
+    else:
+        print(f"DEBUG: User {username} not found")
+
     conn.close()
-    return None, "❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"
+    return None, t("err_login_invalid")
 
 
 def save_song(
@@ -1185,6 +1197,30 @@ def update_user_status(
             f"✅ Updated User ID {target_user_id}: Level={new_level}, Balance={new_balance}",
         )
     except Exception as e:
-        return False, f"❌ Error: {e}"
+        return False, f"❌ Update failed: {e}"
+    finally:
+        conn.close()
+
+
+def delete_user(admin_id: int, target_user_id: int) -> tuple[bool, str]:
+    """ลบผู้ใช้ (Admin only)"""
+    if get_user_level(admin_id) != "admin":
+        return False, "❌ Permission denied"
+
+    conn = _get_conn()
+    try:
+        # Check if target is admin
+        target = conn.execute("SELECT level FROM users WHERE id=?", (target_user_id,)).fetchone()
+        if target and target["level"] == "admin":
+            return False, "❌ Cannot delete another admin"
+
+        conn.execute("DELETE FROM users WHERE id=?", (target_user_id,))
+        # Optional: Delete related data? For now, keep history or delete cascade if needed.
+        # But SQLite foreign keys might not be enabled by default or configured to cascade.
+        # Let's just delete the user record.
+        conn.commit()
+        return True, f"✅ User ID {target_user_id} deleted successfully"
+    except Exception as e:
+        return False, f"❌ Delete failed: {e}"
     finally:
         conn.close()

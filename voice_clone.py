@@ -25,6 +25,7 @@ except Exception:
 from datetime import datetime
 
 from config import ELEVENLABS_API_KEY
+from locales import t
 
 # Setup logging
 logging.basicConfig(
@@ -37,7 +38,7 @@ DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"  # Rachel
 DEFAULT_MODEL_ID = "eleven_multilingual_v2"
 DEFAULT_STABILITY = 0.4
 DEFAULT_SIMILARITY = 0.1
-DEFAULT_FALLBACK_TEXT = "ขณะนี้บริการเสียงไม่พร้อม กรุณาลองใหม่ภายหลัง"
+DEFAULT_FALLBACK_TEXT = t("voice_fallback_text")
 CROSSFADE_MS = int(os.getenv("TTS_CROSSFADE_MS", "30"))
 MAX_CHARS_PER_CHUNK = int(os.getenv("TTS_MAX_CHARS_PER_CHUNK", "400"))
 CACHE_MAX_DAYS = int(os.getenv("TTS_CACHE_MAX_DAYS", "90"))
@@ -618,7 +619,7 @@ def generate_speech_segment(
             pass
         return {"ok": True, "file": wav_path, "cached": True, "cache_key": cache_key}
     if not _circuit_allows():
-        return {"ok": False, "message": "Circuit open"}
+        return {"ok": False, "message": t("err_circuit_open")}
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
     headers = {
         "xi-api-key": ELEVENLABS_API_KEY,

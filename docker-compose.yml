@@ -9,7 +9,7 @@ services:
     container_name: musegenx1000_app
     restart: unless-stopped
     env_file:
-      - .env.production
+      - .env
     ports:
       - "7860:7860"
     depends_on:
@@ -28,7 +28,7 @@ services:
     container_name: musegenx1000_postgres
     restart: unless-stopped
     env_file:
-      - .env.production
+      - .env
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:

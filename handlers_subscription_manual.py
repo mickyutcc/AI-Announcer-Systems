@@ -15,6 +15,7 @@ import config
 from storage import storage as default_storage
 import security_av
 import prometheus_metrics
+from locales import t
 
 logger = logging.getLogger(__name__)
 
@@ -56,21 +57,21 @@ def create_subscription_request(
         # 1. Resolve User ID if not provided
         if user_id is None:
             if not username:
-                return {"status": "ERROR", "message": "User ID or Username required"}
+                return {"status": "ERROR", "message": t("err_user_id_req")}
             user = session.query(User).filter_by(username=username).first()
             if not user:
-                return {"status": "ERROR", "message": f"User not found: {username}"}
+                return {"status": "ERROR", "message": t("err_user_not_found_val").format(username=username)}
             user_id = cast(int, user.id)
         
         # 2. Validate Plan
         if plan not in PLANS:
-            return {"status": "ERROR", "message": f"Invalid plan selected: {plan}"}
+            return {"status": "ERROR", "message": t("err_invalid_plan").format(plan=plan)}
         
         plan_info = PLANS[plan]
         plan_price = plan_info.get("price_thb")
         
         if not isinstance(plan_price, (int, float)):
-            return {"status": "ERROR", "message": f"The '{plan_info.get('name', plan)}' plan does not require a manual subscription request."}
+            return {"status": "ERROR", "message": t("err_plan_no_manual").format(plan_name=plan_info.get('name', plan))}
         
         final_amount = payment_amount if payment_amount is not None else int(plan_price)
         
@@ -81,7 +82,7 @@ def create_subscription_request(
         ).first()
         
         if existing_request:
-             return {"status": "ERROR", "message": "You already have a pending subscription request."}
+             return {"status": "ERROR", "message": t("err_pending_exists")}
 
         # 4. Handle File Upload
         file_data: Optional[bytes] = None
@@ -114,7 +115,7 @@ def create_subscription_request(
                     file_data = f.read()
         
         if not file_data or len(file_data) < 16:
-             return {"status": "ERROR", "message": "Payment slip is required and must be valid."}
+             return {"status": "ERROR", "message": t("err_slip_invalid")}
 
         # --- Security Scan (Enhanced) ---
         try:
@@ -122,20 +123,20 @@ def create_subscription_request(
             status = scan_res.get("status")
             if status == "infected":
                 logger.warning("Upload rejected: infected file: %s", scan_res.get("detail"))
-                return {"status": "ERROR", "message": "Security check failed: Virus detected."}
+                return {"status": "ERROR", "message": t("err_security_virus")}
             elif status == "error":
                 logger.warning("AV scan error: %s (strict=%s)", scan_res.get("detail"), getattr(config, "AV_STRICT", False))
                 if getattr(config, "AV_STRICT", False):
-                    return {"status": "ERROR", "message": "Security check failed: AV scan error."}
+                    return {"status": "ERROR", "message": t("err_security_error")}
             elif status == "unavailable":
                 logger.warning("AV scan unavailable: %s (strict=%s)", scan_res.get("detail"), getattr(config, "AV_STRICT", False))
                 if getattr(config, "AV_STRICT", False):
-                    return {"status": "ERROR", "message": "Security check unavailable. Please try again later."}
+                    return {"status": "ERROR", "message": t("err_security_unavailable")}
             # else clean -> continue
         except Exception as e:
             logger.exception("Unexpected AV scan error")
             if getattr(config, "AV_STRICT", False):
-                return {"status": "ERROR", "message": "Security check failed: Unexpected error."}
+                return {"status": "ERROR", "message": t("err_security_unexpected")}
         # ---------------------
 
         # Generate unique filename
@@ -146,7 +147,7 @@ def create_subscription_request(
         
         # Sanitize extension
         if ext not in [".jpg", ".jpeg", ".png", ".pdf"]:
-             return {"status": "ERROR", "message": "Invalid file type."}
+             return {"status": "ERROR", "message": t("err_file_type")}
 
         unique_name = f"{timestamp}_{uuid.uuid4().hex[:8]}{ext}"
         object_key = f"slips/{user_id}/{unique_name}"
@@ -155,7 +156,7 @@ def create_subscription_request(
         saved_path = storage_svc.upload_bytes(object_key, cast(bytes, file_data))
         
         if not saved_path:
-             return {"status": "ERROR", "message": "Failed to save payment slip."}
+             return {"status": "ERROR", "message": t("err_save_slip_failed")}
             
         # Create Subscription Record
         new_sub = Subscription(
@@ -184,13 +185,13 @@ def create_subscription_request(
         return {
             "status": "PENDING",
             "subscription_id": new_sub.id,
-            "message": "Subscription request submitted successfully."
+            "message": t("success_sub_submitted")
         }
             
     except Exception as e:
         session.rollback()
         logger.error(f"Error creating subscription request: {e}")
-        return {"status": "ERROR", "message": f"Error: {str(e)}"}
+        return {"status": "ERROR", "message": t("err_create_sub").format(error=str(e))}
     finally:
         if local_session:
             session.close()
@@ -213,10 +214,10 @@ def approve_subscription(
     try:
         sub = cast(Any, session.query(Subscription).filter_by(id=subscription_id).with_for_update().one_or_none())
         if not sub:
-            return {"status": "ERROR", "message": "Subscription not found"}
+            return {"status": "ERROR", "message": t("err_sub_not_found")}
             
         if sub.status != SubscriptionStatus.PENDING:
-            return {"status": "ERROR", "message": f"Subscription is in {sub.status} state, cannot approve."}
+            return {"status": "ERROR", "message": t("err_sub_status_invalid").format(status=sub.status)}
             
         # Update status
         sub.status = SubscriptionStatus.ACTIVE
@@ -255,10 +256,11 @@ def approve_subscription(
                 if hasattr(udb, "increment_credits"):
                     udb.increment_credits(cast(int, sub.user_id), gg_amount)
                 elif hasattr(udb, "add_gg"):
-                    udb.add_gg(cast(int, sub.user_id), gg_amount, tx_type="subscription_approved", description=f"Subscription {sub_plan} Approved")
+                    udb.add_gg(cast(int, sub.user_id), gg_amount, tx_type="subscription_approved", description=t("tx_sub_approved").format(plan=sub_plan))
                 else:
                     # Fallback or log error
                     logger.error(f"Cannot add credits: user_db module has no known credit method")
+                    return {"status": "ERROR", "message": t("err_credit_method_missing")}
                 
             # Update user level/plan in user_db? 
             # user_db usually manages level separately. 

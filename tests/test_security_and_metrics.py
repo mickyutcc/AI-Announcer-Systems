@@ -11,6 +11,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import modules to test
 from handlers_subscription_manual import create_subscription_request, approve_subscription
+from locales import t
 from models import Subscription, SubscriptionStatus, User
 import prometheus_metrics
 from rate_limiter import rate_limit
@@ -57,8 +58,7 @@ class TestSecurityAndMetrics(unittest.TestCase):
             self.assertIsInstance(result, dict)
             self.assertEqual(result.get("status"), "ERROR")
             msg = result.get("message", "")
-            self.assertIn("Security check failed", msg)
-            self.assertIn("Virus detected", msg)
+            self.assertIn(t("err_security_virus"), msg)
             
             # Verify scan was called
             mock_scan.assert_called_once()

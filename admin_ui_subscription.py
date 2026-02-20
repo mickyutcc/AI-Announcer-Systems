@@ -1,5 +1,6 @@
 import gradio as gr
 from datetime import datetime
+from locales import t
 
 def render_admin_subscriptions(actions):
     """
@@ -10,23 +11,23 @@ def render_admin_subscriptions(actions):
       - reject(sub_id, reason) -> dict result
     """
     with gr.Column():
-        gr.Markdown("## Pending Subscriptions")
-        refresh_btn = gr.Button("Refresh list")
+        gr.Markdown(t("admin_pending_subs"))
+        refresh_btn = gr.Button(t("refresh_list"))
         pending_df = gr.Dataframe(
-            headers=["ID", "User", "Plan", "Submitted At", "Proof URL"],
+            headers=[t("col_id"), t("col_username"), t("col_plan"), t("col_submitted_at"), t("col_proof_url")],
             datatype=["number", "number", "str", "str", "str"],
             row_count=10,
             interactive=False
         )
         with gr.Row():
-            selected_id = gr.Number(label="Subscription ID", value=None, precision=0)
-            view_proof_btn = gr.Button("View proof")
+            selected_id = gr.Number(label=t("subscription_id"), value=None, precision=0)
+            view_proof_btn = gr.Button(t("view_proof"))
         
         with gr.Row():
-            approve_btn = gr.Button("Approve", variant="primary")
-            reject_btn = gr.Button("Reject", variant="stop")
+            approve_btn = gr.Button(t("approve"), variant="primary")
+            reject_btn = gr.Button(t("reject"), variant="stop")
         
-        reject_reason = gr.Textbox(label="Reject reason", lines=2)
+        reject_reason = gr.Textbox(label=t("reject_reason"), lines=2)
         admin_msg = gr.Markdown("")
 
         def load_pending():
@@ -39,20 +40,20 @@ def render_admin_subscriptions(actions):
                     proof = s.proof_path if s.proof_path else ""
                     rows.append([s.id, s.user_id, s.plan, ts, proof])
             except Exception as e:
-                rows.append([0, 0, "Error", str(e), ""])
+                rows.append([0, 0, t("err_label"), str(e), ""])
             return rows
 
         def view_proof(sub_id):
             if not sub_id:
-                return "Please enter subscription ID"
+                return t("msg_enter_sub_id")
             try:
                 return actions["get_proof_url"](int(sub_id))
             except Exception as e:
-                return f"Error: {str(e)}"
+                return t("err_general").format(error=str(e))
 
         def do_approve(sub_id):
             if not sub_id:
-                return "Enter subscription ID" # Return string for Markdown? The snippet returned dict/string mixed.
+                return t("msg_enter_sub_id")
             # The snippet had: return actions["approve"](int(sub_id))
             # But the click output is admin_msg (Markdown). Markdown expects string.
             # The handlers return dict {"ok": bool, "msg": str}.
@@ -60,23 +61,23 @@ def render_admin_subscriptions(actions):
             try:
                 res = actions["approve"](int(sub_id))
                 if isinstance(res, dict) and "msg" in res:
-                    return f"**{res.get('status', 'Result')}**: {res['msg']}"
+                    return f"**{res.get('status', t('result_label'))}**: {res['msg']}"
                 return str(res)
             except Exception as e:
-                return f"Error: {str(e)}"
+                return t("err_general").format(error=str(e))
 
         def do_reject(sub_id, reason):
             if not sub_id:
-                return "Enter subscription ID"
+                return t("msg_enter_sub_id")
             if not reason:
-                return "Provide reason for rejection"
+                return t("msg_provide_reason")
             try:
                 res = actions["reject"](int(sub_id), reason)
                 if isinstance(res, dict) and "msg" in res:
-                    return f"**{res.get('status', 'Result')}**: {res['msg']}"
+                    return f"**{res.get('status', t('result_label'))}**: {res['msg']}"
                 return str(res)
             except Exception as e:
-                return f"Error: {str(e)}"
+                return t("err_general").format(error=str(e))
 
         refresh_btn.click(lambda: load_pending(), inputs=None, outputs=[pending_df])
         view_proof_btn.click(view_proof, inputs=[selected_id], outputs=[admin_msg])

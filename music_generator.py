@@ -1,10 +1,75 @@
 # -*- coding: utf-8 -*-
 import os
 import time
+import re
+import json
 
 import requests
 
 import app
+import config
+
+
+def _translate_thai_prompt(style: str, prompt: str) -> tuple[str, str]:
+    """
+    Translates Thai style and prompt to English using OpenAI GPT-4o-mini (or similar).
+    Returns (new_style, new_prompt).
+    If translation fails or keys are missing, returns original values.
+    """
+    # Check for Thai characters
+    has_thai = bool(re.search(r'[\u0E00-\u0E7F]', style + prompt))
+    if not has_thai:
+        return style, prompt
+
+    api_key = config.OPENAI_API_KEY
+    if not api_key:
+        print("DEBUG: Thai input detected but OPENAI_API_KEY not set. Skipping translation.")
+        return style, prompt
+
+    print(f"DEBUG: Translating Thai input via OpenAI... Style='{style}', Prompt='{prompt}'", flush=True)
+    
+    system_msg = (
+        "You are a professional music producer. Translate Thai music descriptions into detailed English music prompts for Suno AI. "
+        "Focus on genre, mood, instruments, and tempo. Keep the output concise as keywords separated by commas."
+    )
+    
+    user_msg = f"Style: {style}\nDescription: {prompt}\n\nOutput strictly in JSON format: {{\"style\": \"...\", \"description\": \"...\"}}"
+
+    try:
+        print("DEBUG: Sending request to OpenAI API...", flush=True)
+        resp = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "gpt-4o-mini",
+                "messages": [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg}
+                ],
+                "temperature": 0.7,
+                "response_format": {"type": "json_object"} 
+            },
+            timeout=config.OPENAI_TIMEOUT
+        )
+        
+        if resp.status_code == 200:
+            data = resp.json()
+            content = data["choices"][0]["message"]["content"]
+            parsed = json.loads(content)
+            new_style = parsed.get("style", style)
+            new_prompt = parsed.get("description", prompt)
+            print(f"DEBUG: Translation result: Style='{new_style}', Prompt='{new_prompt}'", flush=True)
+            return new_style, new_prompt
+        else:
+            print(f"DEBUG: OpenAI API Error: {resp.status_code} - {resp.text}", flush=True)
+            
+    except Exception as e:
+        print(f"DEBUG: Translation exception: {e}", flush=True)
+
+    return style, prompt
 
 
 def _sanitize_filename(name: str) -> str:
@@ -44,21 +109,40 @@ def generate_song(
     make_instrumental: bool = False,
     output_format: str = "mp3",
     dry_run: bool = False,
+    progress_callback=None,
 ) -> dict:
     """
     Generate song wrapper.
     output_format: 'mp3' or 'wav'
     dry_run: if True, simulate request without calling API (supported backends only)
+    progress_callback: function(percent: float, message: str)
     """
+    
+    if progress_callback:
+        progress_callback(0.05, "🔍 กำลังวิเคราะห์คำสั่งภาษาไทยของคุณ... (Analyzing Input)")
+
+    # --- TRANSLATOR LAYER ---
+    if mode == "easy":
+        print("DEBUG: Checking if translation is needed...", flush=True)
+        style, title = _translate_thai_prompt(style, title)
+    # ------------------------
+
     backend = (app.MUSIC_BACKEND or "suno").lower().strip()
-    print(f"DEBUG: Using backend: {backend}")
+    print(f"DEBUG: Using backend: {backend}", flush=True)
+
+    if progress_callback:
+        progress_callback(0.1, f"🚀 กำลังเริ่มระบบ {backend.upper()}... (Starting Backend)")
 
     if backend == "udio":
-        res = _generate_udio(title, style, lyrics, mode, make_instrumental)
+        print(f"DEBUG: Starting UDIO generation...", flush=True)
+        res = _generate_udio(title, style, lyrics, mode, make_instrumental, progress_callback=progress_callback)
         if not res.get("ok"):
-            print(f"DEBUG: UDIO failed: {res.get('message')}")
+            print(f"DEBUG: UDIO failed: {res.get('message')}", flush=True)
+        else:
+            print(f"DEBUG: UDIO generation success!", flush=True)
         return res
     if backend == "suno":
+        print(f"DEBUG: Starting SUNO generation...", flush=True)
         # Try SUNO with retries and fallback to FAL/Minimax if unreliable
         res = _suno_with_fallback(
             title,
@@ -68,11 +152,15 @@ def generate_song(
             make_instrumental,
             output_format=output_format,
             dry_run=dry_run,
+            progress_callback=progress_callback,
         )
         if not res.get("ok"):
-            print(f"DEBUG: Final failure after SUNO attempts: {res.get('message')}")
+            print(f"DEBUG: Final failure after SUNO attempts: {res.get('message')}", flush=True)
+        else:
+            print(f"DEBUG: SUNO generation success!", flush=True)
         return res
     if backend in ("fal", "minimax"):
+        print(f"DEBUG: Starting FAL/Minimax generation...", flush=True)
         res = _generate_fal_minimax(
             title,
             style,
@@ -81,11 +169,14 @@ def generate_song(
             make_instrumental,
             output_format=output_format,
             dry_run=dry_run,
+            progress_callback=progress_callback,
         )
         if not res.get("ok"):
-            print(f"DEBUG: FAL/Minimax failed: {res.get('message')}")
+            print(f"DEBUG: FAL/Minimax failed: {res.get('message')}", flush=True)
+        else:
+            print(f"DEBUG: FAL/Minimax generation success!", flush=True)
         return res
-    return _generate_goapi(title, style, lyrics, mode)
+    return _generate_goapi(title, style, lyrics, mode, progress_callback=progress_callback)
 
 
 def _suno_with_fallback(
@@ -97,12 +188,15 @@ def _suno_with_fallback(
     output_format: str = "mp3",
     max_retries: int = DEFAULT_SUNO_RETRIES,
     dry_run: bool = False,
+    progress_callback=None,
 ) -> dict:
     """
     Try SUNO generation with retries. If still failing, fallback to FAL/Minimax automatically.
     Returns the successful result dict or final failure dict.
     """
     if dry_run:
+        if progress_callback:
+            progress_callback(1.0, "Dry run complete")
         print("DEBUG: Dry run for SUNO requested - skipping actual API calls.")
         # For dry-run, we might want to return what we WOULD send, or just success
         # Since we don't have a payload builder for Suno separated out, we'll return a mock success
@@ -116,50 +210,60 @@ def _suno_with_fallback(
     last_err = None
     for attempt in range(1, max_retries + 1):
         try:
-            print(f"DEBUG: SUNO attempt {attempt}/{max_retries}")
-            res = _generate_suno(title, style, lyrics, mode, make_instrumental)
+            if progress_callback:
+                progress_callback(0.1 + (attempt * 0.05), f"🎼 Suno กำลังพยายามครั้งที่ {attempt}/{max_retries}...")
+            print(f"DEBUG: SUNO attempt {attempt}/{max_retries}", flush=True)
+            res = _generate_suno(title, style, lyrics, mode, make_instrumental, progress_callback=progress_callback)
             if res.get("ok"):
                 # If SUNO returns success but the file is missing, treat as failure
                 if res.get("file") or res.get("audio_url"):
+                    print(f"DEBUG: SUNO attempt {attempt} succeeded.", flush=True)
                     return res
                 else:
                     last_err = res.get("message") or "SUNO returned ok but no file/url"
                     print(
-                        f"DEBUG: SUNO attempt returned ok but missing file: {last_err}"
+                        f"DEBUG: SUNO attempt returned ok but missing file: {last_err}", flush=True
                     )
             else:
                 last_err = res.get("message") or "SUNO failed without message"
-                print(f"DEBUG: SUNO attempt failed: {last_err}")
+                print(f"DEBUG: SUNO attempt failed: {last_err}", flush=True)
         except Exception as e:
             last_err = str(e)
-            print(f"DEBUG: Exception during SUNO attempt: {last_err}")
+            print(f"DEBUG: Exception during SUNO attempt: {last_err}", flush=True)
 
         # exponential backoff before next attempt
         if attempt < max_retries:
             backoff = min(30, DEFAULT_SUNO_BACKOFF_BASE * (2 ** (attempt - 1)))
-            print(f"DEBUG: Waiting {backoff}s before next SUNO attempt...")
+            if progress_callback:
+                progress_callback(0.2, f"⚠️ Suno ไม่ตอบสนอง รอ {backoff} วินาทีก่อนลองใหม่...")
+            print(f"DEBUG: Waiting {backoff}s before next SUNO attempt...", flush=True)
             time.sleep(backoff)
 
     # If reached here, SUNO attempts exhausted — fallback to UDIO
-    print("DEBUG: SUNO attempts exhausted, falling back to UDIO.")
-    udio_res = _generate_udio(title, style, lyrics, mode, make_instrumental)
+    if progress_callback:
+        progress_callback(0.3, "⚠️ Suno ไม่สำเร็จ กำลังเปลี่ยนไปใช้ Udio...")
+    print("DEBUG: SUNO attempts exhausted, falling back to UDIO.", flush=True)
+    udio_res = _generate_udio(title, style, lyrics, mode, make_instrumental, progress_callback=progress_callback)
     if udio_res.get("ok"):
-        print("DEBUG: UDIO fallback succeeded.")
+        print("DEBUG: UDIO fallback succeeded.", flush=True)
         return udio_res
 
     print(
-        f"DEBUG: UDIO fallback failed: {udio_res.get('message')}. Falling back to FAL/Minimax."
+        f"DEBUG: UDIO fallback failed: {udio_res.get('message')}. Falling back to FAL/Minimax.", flush=True
     )
+
+    if progress_callback:
+        progress_callback(0.5, "⚠️ Udio ไม่สำเร็จ กำลังเปลี่ยนไปใช้ FAL/Minimax...")
 
     # Try to craft a SUNO-like hint for FAL to mimic Suno tonality/quality
     suno_style_hint = f"{style or ''} Suno-style Thai vocal timbre, natural expressive phrasing, clear Thai diction"
     # Merge hint into style parameter passed to FAL
     fal_style = f"{suno_style_hint}".strip()
     fal_res = _generate_fal_minimax(
-        title, fal_style, lyrics, mode, make_instrumental, output_format=output_format
+        title, fal_style, lyrics, mode, make_instrumental, output_format=output_format, progress_callback=progress_callback
     )
     if fal_res.get("ok"):
-        print("DEBUG: FAL fallback succeeded.")
+        print("DEBUG: FAL fallback succeeded.", flush=True)
         return fal_res
 
     # Both SUNO, UDIO and FAL failed — return last error (prefer fal message if present)
@@ -195,13 +299,15 @@ def _generate_suno_lyrics(
 
 
 def _generate_suno(
-    title: str, style: str, lyrics: str, mode: str, make_instrumental: bool = False
+    title: str, style: str, lyrics: str, mode: str, make_instrumental: bool = False, progress_callback=None
 ) -> dict:
     server = app.SUNO_SERVER_URL
     cookie = app.SUNO_COOKIE
     if not cookie:
         return {"ok": False, "message": "SUNO_COOKIE ไม่ถูกตั้งค่าใน .env"}
     try:
+        if progress_callback:
+            progress_callback(0.2, "🎼 กำลังส่งคำขอไปยัง Suno AI...")
         session = requests.Session()
         session.headers.update(
             {
@@ -231,6 +337,8 @@ def _generate_suno(
             # Standard / Pro
             if not make_instrumental and not (lyrics or "").strip():
                 # Only generate lyrics if NOT instrumental and no lyrics provided
+                if progress_callback:
+                    progress_callback(0.25, "📝 กำลังแต่งเนื้อเพลงด้วย AI...")
                 prompt = " | ".join([p for p in [title, style] if p]) or "Untitled"
                 generated_lyrics = _generate_suno_lyrics(session, server, prompt)
                 if generated_lyrics:
@@ -276,6 +384,8 @@ def _generate_suno(
         for item in items_list:
             au = item.get("audio_url")
             if au:
+                if progress_callback:
+                    progress_callback(0.9, "⬇️ กำลังดาวน์โหลดไฟล์เสียง...")
                 fn = _sanitize_filename(title) + ".mp3"
                 path = _download(au, fn)
                 req_id = item.get("id") if isinstance(item, dict) else None
@@ -292,6 +402,8 @@ def _generate_suno(
         if ids:
             deadline = time.time() + app.MAX_POLL_SECONDS
             while time.time() < deadline:
+                if progress_callback:
+                    progress_callback(0.4, "⏳ Suno กำลังประมวลผล (Polling)...")
                 pr = session.get(
                     f"{server}/api/get?ids={ids}", timeout=app.SUNO_TIMEOUT
                 )
@@ -300,6 +412,8 @@ def _generate_suno(
                     for item in pd if isinstance(pd, list) else [pd]:
                         au = (item or {}).get("audio_url")
                         if au:
+                            if progress_callback:
+                                progress_callback(0.9, "⬇️ Suno เสร็จแล้ว! กำลังดาวน์โหลด...")
                             fn = _sanitize_filename(title) + ".mp3"
                             path = _download(au, fn)
                             req_id = item.get("id") if isinstance(item, dict) else None
@@ -349,7 +463,7 @@ def _extract_audio_url(obj):
 
 
 def _generate_udio(
-    title: str, style: str, lyrics: str, mode: str, make_instrumental: bool = False
+    title: str, style: str, lyrics: str, mode: str, make_instrumental: bool = False, progress_callback=None
 ) -> dict:
     key = app.GOAPI_KEY
     if not key:
@@ -366,6 +480,8 @@ def _generate_udio(
     headers = {"x-api-key": key, "Content-Type": "application/json"}
 
     print(f"DEBUG: UDIO Request to {generate_url}")
+    if progress_callback:
+        progress_callback(0.2, "🎼 กำลังส่งคำขอไปยัง Udio...")
 
     gpt_description_prompt = " | ".join([p for p in [title, style] if p]).strip()
     if make_instrumental:
@@ -514,6 +630,8 @@ def _generate_udio(
         if not task_id:
             audio_url = _extract_audio_url(data)
             if audio_url:
+                if progress_callback:
+                    progress_callback(0.9, "⬇️ กำลังดาวน์โหลดไฟล์เสียง...")
                 fn = _sanitize_filename(title) + ".mp3"
                 path = _download(audio_url, fn)
                 return {
@@ -529,6 +647,8 @@ def _generate_udio(
             }
         deadline = time.time() + app.MAX_POLL_SECONDS
         while time.time() < deadline:
+            if progress_callback:
+                progress_callback(0.4, "⏳ Udio กำลังประมวลผล (Polling)...")
             pr = requests.get(
                 f"{fetch_url}{task_id}", headers=headers, timeout=app.REQUEST_TIMEOUT
             )
@@ -561,6 +681,8 @@ def _generate_udio(
                     }
 
                 print(f"DEBUG: Found audio_url: {audio_url}")
+                if progress_callback:
+                    progress_callback(0.9, "⬇️ Udio เสร็จแล้ว! กำลังดาวน์โหลด...")
                 fn = _sanitize_filename(title) + ".mp3"
                 path = _download(audio_url, fn) if audio_url else None
                 return {
@@ -840,7 +962,7 @@ def build_fal_payload(
     return url, headers, payload
 
 
-def _process_fal_submit_response(r, title, request_payload, request_headers) -> dict:
+def _process_fal_submit_response(r, title, request_payload, request_headers, progress_callback=None) -> dict:
     data = r.json()
     print(f"DEBUG: FAL submit response: {data}")
     request_id = data.get("request_id") or data.get("id") or data.get("requestId")
@@ -849,6 +971,8 @@ def _process_fal_submit_response(r, title, request_payload, request_headers) -> 
         # maybe immediate result returned
         audio_url = _extract_audio_url(data)
         if audio_url:
+            if progress_callback:
+                progress_callback(0.9, "⬇️ กำลังดาวน์โหลดไฟล์เสียง...")
             fmt = request_payload.get("audio_setting", {}).get("format")
             fn_ext = ".wav" if fmt == "wav" else ".mp3"
             fn = _sanitize_filename(title) + fn_ext
@@ -866,6 +990,8 @@ def _process_fal_submit_response(r, title, request_payload, request_headers) -> 
 
     deadline = time.time() + app.MAX_POLL_SECONDS
     while time.time() < deadline:
+        if progress_callback:
+            progress_callback(0.4, "⏳ FAL/Minimax กำลังประมวลผล (Polling)...")
         try:
             sr = requests.get(
                 status_url, headers=request_headers, timeout=app.REQUEST_TIMEOUT
@@ -935,6 +1061,8 @@ def _process_fal_submit_response(r, title, request_payload, request_headers) -> 
                     audio_url = _extract_audio_url(sdata)
 
                 if audio_url:
+                    if progress_callback:
+                        progress_callback(0.9, "⬇️ FAL เสร็จแล้ว! กำลังดาวน์โหลด...")
                     ext = (
                         ".wav"
                         if request_payload.get("audio_setting", {}).get("format")

@@ -292,18 +292,13 @@ class TestMuseGenSystem(unittest.TestCase):
             admin_id = cast(int, admin_id)
             user_db.update_user_status(admin_id, user_id, "basic", 5000)
 
-            # IMPORTANT: The current system hardcodes DEFAULT_USER in handlers.generate_music
-            # We need to patch it to use our test user for this test to verify deduction on the correct user
-            original_user = handlers.DEFAULT_USER
-            original_pass = handlers.DEFAULT_PASS
-
-            handlers.DEFAULT_USER = "user_test"
-            handlers.DEFAULT_PASS = "pass123"
-
+            # We pass user_id explicitly to test correct deduction
+            
             try:
                 # Call generate
+                # handlers.generate_music signature: prompt, style, lyrics, mode, lyrics_mode="AI", user_id=None
                 file_path, msg, url = handlers.generate_music(
-                    prompt="Test Song", style="Pop", lyrics="", mode="easy"
+                    prompt="Test Song", style="Pop", lyrics="", mode="easy", user_id=user_id
                 )
 
                 # Assertions
@@ -324,9 +319,7 @@ class TestMuseGenSystem(unittest.TestCase):
                 self.assertEqual(history[0]["title"], "Test Song")
 
             finally:
-                # Restore
-                handlers.DEFAULT_USER = original_user
-                handlers.DEFAULT_PASS = original_pass
+                pass
 
     def test_10_input_validation(self):
         """Test Input Validation"""

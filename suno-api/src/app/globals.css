@@ -2,24 +2,136 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 255, 255, 255;
-  --background-end-rgb: 255, 255, 255;
-}
-
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
-}
-
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-}
+:root{ 
+   --bg-start: #0f172a;       /* navy-ish */ 
+   --bg-end:   #0b1020;       /* darker */ 
+   --card-bg:  #ffffff;       /* card color */ 
+   --muted:    #6b7280; 
+   --accent:   #ff7a18;       /* orange accent */ 
+   --accent-2: #6a5cff;       /* purple-blue */ 
+   --container-max: 980px; 
+   --radius: 14px; 
+   --glass: rgba(255,255,255,0.06); 
+ } 
+ 
+ html,body,#__next{ 
+   height:100%; 
+ } 
+ 
+ body{ 
+   margin:0; 
+   font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; 
+   background: radial-gradient(1200px 600px at 10% 10%, rgba(106,92,255,0.06), transparent 10%), 
+               linear-gradient(180deg,var(--bg-start), var(--bg-end)); 
+   color: #e6eef8; 
+   -webkit-font-smoothing:antialiased; 
+   -moz-osx-font-smoothing:grayscale; 
+ } 
+ 
+ /* Page container centers content and limits width */ 
+ .page-container{ 
+   max-width: var(--container-max); 
+   margin: 0 auto; 
+   padding: 40px 20px; 
+   box-sizing: border-box; 
+ } 
+ 
+ /* Hero */ 
+ .hero{ 
+   display:flex; 
+   flex-direction:column; 
+   align-items:center; 
+   justify-content:center; 
+   text-align:center; 
+   gap:18px; 
+   padding:32px 16px; 
+   margin: 24px auto; 
+   background: linear-gradient(135deg, rgba(106,92,255,0.06), rgba(255,122,24,0.03)), url('/suno-banner.png');
+   background-size: cover;
+   background-position: center;
+   background-blend-mode: overlay;
+   border-radius: calc(var(--radius) + 6px); 
+   box-shadow: 0 18px 50px rgba(2,6,23,0.6); 
+ } 
+ 
+ .hero .logo{ 
+   width: 220px; 
+   max-width: 40%; 
+   height: auto; 
+   margin: 0; 
+ } 
+ 
+ .hero h1{ 
+   margin:0; 
+   font-size:32px; 
+   color: #fff; 
+   letter-spacing: -0.5px; 
+   font-weight:700; 
+ } 
+ 
+ .hero p.lead{ 
+   margin:0; 
+   color: var(--muted); 
+   font-size:15px; 
+ } 
+ 
+ /* Card / Form */ 
+ .card{ 
+   background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); 
+   border-radius: var(--radius); 
+   padding: 18px; 
+   margin-top: 20px; 
+   box-shadow: 0 8px 30px rgba(2,6,23,0.45); 
+   border: 1px solid rgba(255,255,255,0.04); 
+ } 
+ 
+ .input{ 
+   display:block; 
+   width:100%; 
+   padding:12px 14px; 
+   border-radius: 10px; 
+   border:1px solid rgba(255,255,255,0.08); 
+   background: rgba(255,255,255,0.02); 
+   color: #fff; 
+   margin-bottom:12px; 
+   outline:none; 
+   transition: box-shadow .18s ease, border-color .12s ease, transform .08s ease; 
+ } 
+ 
+ .input:focus{ 
+   border-color: rgba(106,92,255,0.9); 
+   box-shadow: 0 6px 20px rgba(106,92,255,0.12); 
+   transform: translateY(-1px); 
+ } 
+ 
+ .btn { 
+   display:inline-block; 
+   padding:12px 18px; 
+   border-radius: 10px; 
+   background: linear-gradient(90deg,var(--accent),var(--accent-2)); 
+   color: white; 
+   border: none; 
+   font-weight:600; 
+   cursor:pointer; 
+   box-shadow: 0 8px 20px rgba(106,92,255,0.12); 
+   transition: transform .12s ease, box-shadow .12s ease, opacity .08s ease; 
+ } 
+ 
+ .btn:hover{ transform: translateY(-3px); box-shadow: 0 14px 30px rgba(106,92,255,0.16); } 
+ .btn.secondary{ 
+   background: transparent; 
+   border: 1px solid rgba(255,255,255,0.06); 
+   color: #fff; 
+ } 
+ 
+ /* Reduce large whitespace - useful when hero is too tall */ 
+ .spacer-small{ height: 12px; } 
+ .spacer-medium{ height: 26px; } 
+ 
+ /* Responsive tweaks */ 
+ @media (max-width:720px){ 
+   .hero{ padding:26px; } 
+   .hero .logo{ max-width: 60%; } 
+   .page-container{ padding:20px; } 
+   .hero h1{ font-size:22px; } 
+ }
