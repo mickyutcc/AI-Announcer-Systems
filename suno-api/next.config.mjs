@@ -1,0 +1,24 @@
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  webpack: (config, { isServer }) => {
+    config.module.rules.push({
+      test: /\.(ttf|html)$/i,
+      type: 'asset/resource'
+    });
+    if (isServer) {
+      config.externals = config.externals || [];
+      config.externals.push(
+        'rebrowser-playwright-core',
+        'ghost-cursor-playwright',
+        '@2captcha/captcha-solver',
+        'electron'
+      );
+    }
+    return config;
+  },
+  // experimental: {
+  //   serverMinification: false, // the server minification unfortunately breaks the selector class names
+  // },
+};  
+
+export default nextConfig;

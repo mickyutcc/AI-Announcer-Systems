@@ -1,2 +1,20 @@
 python-dotenv
 requests
+gradio
+prometheus_client
+pytest
+sqlalchemy
+boto3
+redis
+sentry-sdk
+pyclamd
+fastapi
+uvicorn
+alembic
+psycopg2-binary
+prometheus-fastapi-instrumentator
+
+# Note: The local suno-api is a Node.js service (gcui-art/suno-api) running in a separate container.
+# It is accessed via HTTP requests and does not need to be installed as a Python package.
+# If you intended to install a specific Python wrapper, uncomment and adjust below:
+# git+https://github.com/Malith-Rukshan/Suno-API.git@main#egg=suno-api

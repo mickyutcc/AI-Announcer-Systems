@@ -1,0 +1,16 @@
+groups:
+  - name: tts-alerts
+    rules:
+      - alert: HighEstimatedTTSCost
+        expr: increase(tts_cost_estimated_total[30d]) > 10
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: High estimated TTS cost in last 30 days
+          description: TTS estimated cost > $10 in last 30 days
+      - alert: HighTTSRequestErrorRate
+        expr: rate(tts_requests_total{status=~"error|rate_limited|rejected"}[5m]) / rate(tts_requests_total[5m]) > 0.01
+        for: 5m
+        labels:
+          severity: critical

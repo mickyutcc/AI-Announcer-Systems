@@ -27,6 +27,12 @@ build/
 # IDE
 .vscode/
 .idea/
+
+# Custom Ignore
+pythainlp-data/
+cache/
+tmp.json
+*.log
 *.swp
 *.swo
 *~
@@ -67,3 +73,27 @@ yarn-error.log*
 *.zip
 *.tar.gz
 *.rar
+# Local envs & secrets
+.env
+.env.*
+suno-api/.env
+
+# Outputs and binaries
+outputs/
+*.mp3
+*.wav
+
+# Python envs/cache
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Node / Next
+node_modules/
+.next/
+
+# OS, editors
+.DS_Store
+.vscode/
+.idea/

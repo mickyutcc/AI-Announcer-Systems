@@ -1,0 +1,10 @@
+1. เก็บ API keys ใน secret manager เท่านั้น และห้าม hardcode
+2. หมุนเวียนคีย์ตามรอบเวลา และจำกัดสิทธิ์ของคีย์ให้เฉพาะ TTS
+3. ห้าม log ข้อความเต็มหรือข้อมูลส่วนบุคคลในทุกระดับ log
+4. เปิดใช้ consent สำหรับ similarity_boost สูง และเก็บ audit metadata
+5. ตั้ง retention policy สำหรับเสียงและ cache ให้สอดคล้องกับข้อกำหนด
+6. จำกัดอัตราการเรียก (rate limit) ต่อผู้ใช้และต่อระบบ
+7. เปิด circuit breaker และ retry พร้อม jitter เพื่อกันระบบล่มเป็นวงกว้าง
+8. เข้ารหัสไฟล์และ metadata หากต้องเก็บข้ามเครื่อง
+9. ตรวจสอบการเข้าถึงไฟล์ cache และโฟลเดอร์ให้สิทธิ์น้อยที่สุด
+10. ทดสอบ incident response: revoke key, rotate key, และตรวจสอบ logs

@@ -1,0 +1,105 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: musegenx1000_app:latest
+    container_name: musegenx1000_app
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "7860:7860"
+    depends_on:
+      - postgres
+      - redis
+      - clamav
+    volumes:
+      - ./data/proofs:/data/proofs        # persist proofs outside container
+      # For dev option: mount local suno-api if you want to use local copy (see dev option below)
+      # - ./suno-api:/opt/suno-api
+    networks:
+      - musenet
+
+  postgres:
+    image: postgres:14-alpine
+    container_name: musegenx1000_postgres
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - musenet
+
+  redis:
+    image: redis:6-alpine
+    container_name: musegenx1000_redis
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+    networks:
+      - musenet
+
+  clamav:
+    image: mkodockx/docker-clamav:alpine
+    container_name: musegenx1000_clamav
+    restart: unless-stopped
+    # ports:
+    #   - "3310:3310" # Internal only, accessed by app service
+    networks:
+      - musenet
+
+  nginx:
+    image: nginx:stable
+    container_name: musegenx1000_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx/conf.d:/etc/nginx/conf.d:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro   # mount certs (from host certbot)
+    depends_on:
+      - app
+    networks:
+      - musenet
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: musegenx1000_prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./deploy/monitoring/alerts.yml:/etc/prometheus/alerts.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - musenet
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: musegenx1000_alertmanager
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./deploy/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+    networks:
+      - musenet
+
+volumes:
+  pgdata:
+  redisdata:
+  prometheus_data:
+
+networks:
+  musenet:

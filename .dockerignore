@@ -1,0 +1,61 @@
+# Ignore virtual environments
+venv/
+.venv/
+env/
+.Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# VCS
+.git/
+.gitignore
+
+# OS files
+.DS_Store
+
+# User data / backups
+data/backups/
+data/proofs/
+cache/
+assets/slips/
+assets/proofs/
+assets/cache/
+
+# Media files (generated or temp)
+*.wav
+*.mp3
+*.mp4
+
+# Ignore docker files not needed inside
+docker-compose.yml
+docker-compose.prod.yml
+Dockerfile
+deploy.sh
+
+# Ignore local environment files
+.env
+.env.prod
+
+# Ignore database file (will be created/mounted)
+musegenx1000.db
+
+# Large unrelated projects
+pricing_app/
+suno-api/
+pythainlp-data/
+
+# Build artifacts and deps
+node_modules/
+build/
+dist/
+.vercel/
+.github/
+.idea/
+.vscode/
+*.log
+coverage/
+htmlcov/
+.pytest_cache/
+.mypy_cache/
